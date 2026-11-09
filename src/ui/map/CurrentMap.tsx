@@ -6,9 +6,12 @@
 //
 // Arrow positions come from scripts/cove-map/arrows.py (arrowLayout.ts), which checks
 // that every arrow stays over water. Open water: straight arrows, length ∝ speed.
-// Cove: a few long, curving, dotted "eddy" arrows (an estimate), like the back-eddy
-// arrows in the Dolphin Club guide, plus short dotted straight ones. Dotted arrows show
-// direction only; their length never changes with speed.
+// Two kinds of arrows:
+// - Solid straight arrows, in open water and (thinner) in the cove: the data. They point
+//   east on a flood and west on an ebb, and their length ∝ speed (1 kt key).
+// - Dotted curving "eddy" arrows in the cove, like the back-eddy arrows in the Dolphin
+//   Club guide: an estimate of how water circulates. They grow with speed, but not on
+//   the 1 kt scale (see MIN_CURVE_FRACTION).
 
 import type { CurrentPhase } from '../../domain/types'
 import { useElementWidth } from '../charts/useElementWidth'
@@ -38,12 +41,13 @@ const UNITS_PER_KNOT = 60
 /** The layout was checked for arrows up to this speed; faster currents draw at this length. */
 const MAX_DRAWN_KT = 1.6
 /**
- * Straight cove arrows have a fixed length: they show direction only, not speed (the
- * cove's speed is an estimate). 42 = the length of a 0.7 kt open-water arrow
- * (60 × 0.7). arrows.py checked these spots for arrows up to 57.6 units long, so
- * anything up to that still stays over water.
+ * Eddy curves grow with speed too, but not on the 1 kt scale. Only the part nearest the
+ * arrowhead is drawn: MAX_CURVE_FRACTION of the curve at MAX_DRAWN_KT and up, shrinking
+ * to MIN_CURVE_FRACTION at no current. Never more than the whole curve arrows.py checked.
  */
-const COVE_ARROW_LENGTH = 42
+const MIN_CURVE_FRACTION = 0.3
+const MAX_CURVE_FRACTION = 0.75
+
 
 type Props = { phase: CurrentPhase; speedKt: number }
 
@@ -92,19 +96,27 @@ export function CurrentMap({ phase, speedKt }: Props) {
                 y={arrow.y}
                 directionX={direction}
                 length={UNITS_PER_KNOT * drawnKt}
+                isCove={false}
               />
             ))}
+            {/* Same scale as open water, drawn thinner. */}
             {COVE_STRAIGHT_ARROWS.map((arrow) => (
-              <CoveStraightArrow
+              <StraightArrow
                 key={`${arrow.x},${arrow.y}`}
                 x={arrow.x}
                 y={arrow.y}
                 directionX={direction}
-                length={COVE_ARROW_LENGTH}
+                length={UNITS_PER_KNOT * drawnKt}
+                isCove={true}
               />
             ))}
             {COVE_CURVES.map((curve) => (
-              <CoveCurve key={`${curve.start.x},${curve.start.y}`} curve={curve} isEbb={phase === 'ebb'} />
+              <CoveCurve
+                key={`${curve.start.x},${curve.start.y}`}
+                curve={curve}
+                isEbb={phase === 'ebb'}
+                fraction={curveFraction(drawnKt)}
+              />
             ))}
           </g>
         )}
@@ -114,10 +126,10 @@ export function CurrentMap({ phase, speedKt }: Props) {
         {!showArrows && (
           <g>
             {OPEN_WATER_ARROWS.map((arrow) => (
-              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={7} isCove={false} />
+              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={7} />
             ))}
             {COVE_STRAIGHT_ARROWS.map((arrow) => (
-              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={5} isCove={true} />
+              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={5} />
             ))}
           </g>
         )}
@@ -149,9 +161,9 @@ export function CurrentMap({ phase, speedKt }: Props) {
             <KeyArrow lengthPx={keyLengthPx} light={false} />1 kt
           </span>
           <span className="map__key-row">
-            {/* Drawn at the cove arrows' real on-screen length: pixels = units ÷ unitsPerPixel */}
-            <KeyArrow lengthPx={COVE_ARROW_LENGTH / unitsPerPixel} light={true} />
-            cove: direction only (estimate)
+            {/* Eddy arrows aren't on the 1 kt scale, so this sample isn't to scale. */}
+            <KeyArrow lengthPx={keyLengthPx} light={true} />
+            local variation (estimates)
           </span>
         </div>
       ) : (
@@ -159,6 +171,16 @@ export function CurrentMap({ phase, speedKt }: Props) {
       )}
     </div>
   )
+}
+
+/**
+ * How much of each eddy curve to draw at this speed, from MIN_CURVE_FRACTION up to
+ * MAX_CURVE_FRACTION:
+ *   fraction = MIN + (MAX − MIN) × (speed ÷ MAX_DRAWN_KT)
+ */
+function curveFraction(drawnKt: number): number {
+  const speedShare = drawnKt / MAX_DRAWN_KT // 0 at no current, 1 at the top speed
+  return MIN_CURVE_FRACTION + (MAX_CURVE_FRACTION - MIN_CURVE_FRACTION) * speedShare
 }
 
 function mapDescription(phase: CurrentPhase, speedKt: number): string {
@@ -172,33 +194,26 @@ type StraightArrowProps = {
   y: number
   directionX: number // +1 = right (flood), −1 = left (ebb)
   length: number // tail to tip, map units
+  isCove: boolean // cove arrows are drawn thinner, with a smaller head
 }
 
 /** A straight horizontal arrow centered on (x, y), with a small filled head. */
-function StraightArrow({ x, y, directionX, length }: StraightArrowProps) {
-  const headLength = 12
-  const headHalfWidth = 7
+function StraightArrow({ x, y, directionX, length, isCove }: StraightArrowProps) {
+  let lineWidth = 4
+  let headLength = 12
+  let headHalfWidth = 7
+  if (isCove) {
+    lineWidth = 2.5
+    headLength = 10
+    headHalfWidth = 5
+  }
   const tailX = x - directionX * (length / 2)
   const tipX = x + directionX * (length / 2)
   const baseX = tipX - directionX * headLength // where the head starts
   return (
     <g className="map__arrow">
-      <path d={`M${tailX},${y} L${baseX},${y}`} strokeWidth={4} />
+      <path d={`M${tailX},${y} L${baseX},${y}`} strokeWidth={lineWidth} />
       <path d={`M${tipX},${y} L${baseX},${y - headHalfWidth} L${baseX},${y + headHalfWidth} Z`} className="map__arrow-head" />
-    </g>
-  )
-}
-
-/** A short straight dotted arrow in the cove: the regular east/west current. */
-function CoveStraightArrow({ x, y, directionX, length }: StraightArrowProps) {
-  const headLength = 8
-  const tailX = x - directionX * (length / 2)
-  const tipX = x + directionX * (length / 2)
-  const baseX = tipX - directionX * headLength
-  return (
-    <g className="map__arrow map__arrow--cove">
-      <path d={`M${tailX},${y} L${tipX - directionX * 3},${y}`} className="map__dots" />
-      <path d={`M${baseX},${y - 6} L${tipX},${y} L${baseX},${y + 6}`} strokeWidth={3} />
     </g>
   )
 }
@@ -207,19 +222,17 @@ type SlackDiamondProps = {
   x: number // center, map units
   y: number
   halfSize: number // center to each corner, map units
-  isCove: boolean // cove diamonds are lighter, like the cove arrows
 }
 
 /** A small filled ◆ centered on (x, y), marking slack water. */
-function SlackDiamond({ x, y, halfSize, isCove }: SlackDiamondProps) {
+function SlackDiamond({ x, y, halfSize }: SlackDiamondProps) {
   // Corners: top, right, bottom, left.
   const top = `${x},${y - halfSize}`
   const right = `${x + halfSize},${y}`
   const bottom = `${x},${y + halfSize}`
   const left = `${x - halfSize},${y}`
-  const groupClass = isCove ? 'map__arrow map__arrow--cove' : 'map__arrow'
   return (
-    <g className={groupClass}>
+    <g className="map__arrow">
       <path d={`M${top} L${right} L${bottom} L${left} Z`} className="map__diamond" />
     </g>
   )
@@ -227,12 +240,53 @@ function SlackDiamond({ x, y, halfSize, isCove }: SlackDiamondProps) {
 
 type Point = { x: number; y: number }
 
+type Curve = { start: Point; control: Point; end: Point }
+
+/** A point on a quadratic curve:  point = (1−t)² · start + 2(1−t)t · control + t² · end */
+function curvePoint(curve: Curve, t: number): Point {
+  const a = (1 - t) * (1 - t)
+  const b = 2 * (1 - t) * t
+  const c = t * t
+  return {
+    x: a * curve.start.x + b * curve.control.x + c * curve.end.x,
+    y: a * curve.start.y + b * curve.control.y + c * curve.end.y,
+  }
+}
+
+/**
+ * The piece of a quadratic curve between t0 and t1 (0 = start, 1 = end), as its own
+ * quadratic curve (same formula as trim() in arrows.py). Its control point is
+ *   control' = (1−t0)(1−t1) · start + ((1−t0)·t1 + t0·(1−t1)) · control + t0·t1 · end
+ */
+function trimCurve(curve: Curve, t0: number, t1: number): Curve {
+  const a = (1 - t0) * (1 - t1)
+  const b = (1 - t0) * t1 + t0 * (1 - t1)
+  const c = t0 * t1
+  return {
+    start: curvePoint(curve, t0),
+    control: {
+      x: a * curve.start.x + b * curve.control.x + c * curve.end.x,
+      y: a * curve.start.y + b * curve.control.y + c * curve.end.y,
+    },
+    end: curvePoint(curve, t1),
+  }
+}
+
 /**
  * A long curving dotted arrow in the cove. The curve is stored in its flood direction
  * (start → end); on an ebb the head goes on the start instead, so it points backwards.
+ * Only `fraction` of it is drawn: the part nearest the head.
  */
-function CoveCurve({ curve, isEbb }: { curve: { start: Point; control: Point; end: Point }; isEbb: boolean }) {
-  const { start, control, end } = curve
+function CoveCurve({ curve, isEbb, fraction }: { curve: Curve; isEbb: boolean; fraction: number }) {
+  // Flood: the head is at the end, so keep t from (1 − fraction) to 1.
+  // Ebb: the head is at the start, so keep t from 0 to fraction.
+  let shown: Curve
+  if (isEbb) {
+    shown = trimCurve(curve, 0, fraction)
+  } else {
+    shown = trimCurve(curve, 1 - fraction, 1)
+  }
+  const { start, control, end } = shown
   // The head sits on the end the water is flowing toward. A quadratic curve arrives at
   // an end heading from the control point to that end.
   const tip = isEbb ? start : end

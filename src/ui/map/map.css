@@ -35,8 +35,8 @@
   stroke-linejoin: round;
 }
 
-/* Current arrows: long white curves in open water; short dotted, lighter arrows in
-   the cove, where the direction is an estimate. */
+/* Current arrows: solid white straight arrows (the data); dotted, lighter curves in
+   the cove, an estimate of the eddy (direction only). */
 .map__arrow path {
   fill: none;
   stroke: #ffffff;
@@ -53,7 +53,6 @@
   fill: #ffffff;
   stroke: none;
 }
-.map__arrow--cove .map__diamond { fill: #9fb3c0; }
 .map__dots {
   stroke-width: 3;
   /* Near-zero dashes with round caps draw as dots, 7 units apart. */

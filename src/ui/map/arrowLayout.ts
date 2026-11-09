@@ -23,22 +23,18 @@ export const OPEN_WATER_ARROWS: Array<{ x: number; y: number }> = [
 
 /** Cove: short straight arrow centers, showing the regular east/west current. */
 export const COVE_STRAIGHT_ARROWS: Array<{ x: number; y: number }> = [
-  { x: 680, y: 240 },
-  { x: 896, y: 336 },
-  { x: 752, y: 348 },
-  { x: 596, y: 384 },
-  { x: 932, y: 396 },
-  { x: 908, y: 456 },
+  { x: 704, y: 240 },
+  { x: 644, y: 372 },
   { x: 752, y: 492 },
-  { x: 632, y: 516 },
+  { x: 936, y: 444 },
 ]
 
 type Point = { x: number; y: number }
 
 /** Cove: long curving arrows in their flood direction (start → end). Ebb draws them backwards. */
 export const COVE_CURVES: Array<{ start: Point; control: Point; end: Point }> = [
-  { start: { x: 791, y: 403 }, control: { x: 837, y: 362 }, end: { x: 846, y: 272 } },
-  { start: { x: 618, y: 322 }, control: { x: 691, y: 290 }, end: { x: 770, y: 290 } },
-  { start: { x: 616, y: 452 }, control: { x: 725, y: 438 }, end: { x: 864, y: 412 } },
+  { start: { x: 828, y: 262 }, control: { x: 839, y: 350 }, end: { x: 872, y: 432 } },
+  { start: { x: 620, y: 316 }, control: { x: 699, y: 303 }, end: { x: 772, y: 348 } },
+  { start: { x: 577, y: 452 }, control: { x: 684, y: 438 }, end: { x: 824, y: 412 } },
   { start: { x: 680, y: 554 }, control: { x: 802, y: 574 }, end: { x: 940, y: 520 } },
 ]
