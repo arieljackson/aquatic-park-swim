@@ -178,7 +178,10 @@ for curve in COVE_CURVES:
 
 # ---- Cove: a few short straight arrows showing the regular east/west current, in
 # the open spots between the curves.
-COVE_STRAIGHT_FACTOR = 0.6  # length = this × the open-water length (keep in step with CurrentMap.tsx)
+# Spots are checked for straight arrows this long: 60 × 1.6 × 0.6 = 57.6 units.
+# CurrentMap.tsx draws them at a fixed COVE_ARROW_LENGTH (42), which must stay at or
+# under this checked length.
+COVE_STRAIGHT_FACTOR = 0.6
 straight_length = UNITS_PER_KNOT * MAX_KT * COVE_STRAIGHT_FACTOR
 cove_straight = []
 for y in range(240, 600, 12):

@@ -33,11 +33,12 @@
   text-overflow: ellipsis;
 }
 
-.panel__state {
+/* The glyph's line is 30px tall, like .panel__big on phones, so the rows of the
+   Current and Speed tiles line up. */
+.panel__glyph {
+  height: 30px;
   display: flex;
-  /* Top-aligned, so the glyph sits next to the first word ("SLACK" has no second). */
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
 }
 
 .panel__state-words {
@@ -72,11 +73,6 @@
 .panel__countdown {
   font-size: 15px;
   color: var(--now);
-}
-
-/* The state arrow keeps its size next to long words. */
-.panel__state svg {
-  flex-shrink: 0;
 }
 
 /* Laptop: the four tiles in one row. */

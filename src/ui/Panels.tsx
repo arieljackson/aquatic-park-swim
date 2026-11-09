@@ -25,14 +25,14 @@ export function Panels({ conditions }: { conditions: Conditions }) {
     <div className="panels">
       <section className="panel">
         <h2 className="label">Current</h2>
-        <div className="panel__state">
-          <StateGlyph phase={current.phase} size={28} />
-          {/* Always two lines; slack leaves the second one empty. */}
-          <span className="panel__state-words">
-            <span className="panel__line">{firstWord}</span>
-            <span className="panel__line">{secondWord === '' ? '\u00a0' : secondWord}</span>
-          </span>
+        {/* The glyph gets its own line, the same height as the big number in the other
+            tiles, so the words below have the tile's full width. */}
+        <div className="panel__glyph">
+          <StateGlyph phase={current.phase} size={30} />
         </div>
+        {/* Always two lines; slack leaves the second one empty. */}
+        <p className="panel__state-words panel__line">{firstWord}</p>
+        <p className="panel__state-words panel__line">{secondWord === '' ? '\u00a0' : secondWord}</p>
       </section>
 
       <section className="panel">

@@ -67,8 +67,8 @@ function App() {
             speed, tide occurs 15 min later than Golden Gate.
           </p>
           <p>
-            Estimates from predictions, not live measurements. Real conditions can differ, so use your own
-            judgment and don’t rely on this for safety.
+            Values are estimated from NOAA predictions, and map data is not exact. Real conditions vary, and you
+            should always use your own judgment while swimming.
           </p>
           <p>
             Data: tide and current predictions from{' '}

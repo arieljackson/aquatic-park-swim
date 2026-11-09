@@ -7,7 +7,8 @@
 // Arrow positions come from scripts/cove-map/arrows.py (arrowLayout.ts), which checks
 // that every arrow stays over water. Open water: straight arrows, length ∝ speed.
 // Cove: a few long, curving, dotted "eddy" arrows (an estimate), like the back-eddy
-// arrows in the Dolphin Club guide.
+// arrows in the Dolphin Club guide, plus short dotted straight ones. Dotted arrows show
+// direction only; their length never changes with speed.
 
 import type { CurrentPhase } from '../../domain/types'
 import { useElementWidth } from '../charts/useElementWidth'
@@ -36,8 +37,13 @@ const VIEW_WIDTH = 1000
 const UNITS_PER_KNOT = 60
 /** The layout was checked for arrows up to this speed; faster currents draw at this length. */
 const MAX_DRAWN_KT = 1.6
-/** Straight cove arrows are this fraction of the open-water length. */
-const COVE_STRAIGHT_FACTOR = 0.6
+/**
+ * Straight cove arrows have a fixed length: they show direction only, not speed (the
+ * cove's speed is an estimate). 42 = the length of a 0.7 kt open-water arrow
+ * (60 × 0.7). arrows.py checked these spots for arrows up to 57.6 units long, so
+ * anything up to that still stays over water.
+ */
+const COVE_ARROW_LENGTH = 42
 
 type Props = { phase: CurrentPhase; speedKt: number }
 
@@ -94,11 +100,24 @@ export function CurrentMap({ phase, speedKt }: Props) {
                 x={arrow.x}
                 y={arrow.y}
                 directionX={direction}
-                length={UNITS_PER_KNOT * drawnKt * COVE_STRAIGHT_FACTOR}
+                length={COVE_ARROW_LENGTH}
               />
             ))}
             {COVE_CURVES.map((curve) => (
               <CoveCurve key={`${curve.start.x},${curve.start.y}`} curve={curve} isEbb={phase === 'ebb'} />
+            ))}
+          </g>
+        )}
+
+        {/* Slack: a ◆ where each straight arrow would be (the same ◆ as on the slider
+            and the Current tile). Those spots are already checked to be over water. */}
+        {!showArrows && (
+          <g>
+            {OPEN_WATER_ARROWS.map((arrow) => (
+              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={7} isCove={false} />
+            ))}
+            {COVE_STRAIGHT_ARROWS.map((arrow) => (
+              <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={5} isCove={true} />
             ))}
           </g>
         )}
@@ -130,8 +149,9 @@ export function CurrentMap({ phase, speedKt }: Props) {
             <KeyArrow lengthPx={keyLengthPx} light={false} />1 kt
           </span>
           <span className="map__key-row">
-            <KeyArrow lengthPx={keyLengthPx * 0.6} light={true} />
-            cove (estimate)
+            {/* Drawn at the cove arrows' real on-screen length: pixels = units ÷ unitsPerPixel */}
+            <KeyArrow lengthPx={COVE_ARROW_LENGTH / unitsPerPixel} light={true} />
+            cove: direction only (estimate)
           </span>
         </div>
       ) : (
@@ -179,6 +199,28 @@ function CoveStraightArrow({ x, y, directionX, length }: StraightArrowProps) {
     <g className="map__arrow map__arrow--cove">
       <path d={`M${tailX},${y} L${tipX - directionX * 3},${y}`} className="map__dots" />
       <path d={`M${baseX},${y - 6} L${tipX},${y} L${baseX},${y + 6}`} strokeWidth={3} />
+    </g>
+  )
+}
+
+type SlackDiamondProps = {
+  x: number // center, map units
+  y: number
+  halfSize: number // center to each corner, map units
+  isCove: boolean // cove diamonds are lighter, like the cove arrows
+}
+
+/** A small filled ◆ centered on (x, y), marking slack water. */
+function SlackDiamond({ x, y, halfSize, isCove }: SlackDiamondProps) {
+  // Corners: top, right, bottom, left.
+  const top = `${x},${y - halfSize}`
+  const right = `${x + halfSize},${y}`
+  const bottom = `${x},${y + halfSize}`
+  const left = `${x - halfSize},${y}`
+  const groupClass = isCove ? 'map__arrow map__arrow--cove' : 'map__arrow'
+  return (
+    <g className={groupClass}>
+      <path d={`M${top} L${right} L${bottom} L${left} Z`} className="map__diamond" />
     </g>
   )
 }

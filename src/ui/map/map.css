@@ -48,6 +48,12 @@
   stroke: none;
 }
 .map__arrow--cove path { stroke: #9fb3c0; }
+/* Slack ◆ markers: filled in the same color as the arrows they stand in for. */
+.map__arrow .map__diamond {
+  fill: #ffffff;
+  stroke: none;
+}
+.map__arrow--cove .map__diamond { fill: #9fb3c0; }
 .map__dots {
   stroke-width: 3;
   /* Near-zero dashes with round caps draw as dots, 7 units apart. */
