@@ -1,0 +1,54 @@
+.slider {
+  position: relative;
+}
+
+.slider svg {
+  display: block;
+}
+
+.slider text {
+  font-family: var(--mono);
+}
+
+.slider__track { fill: var(--line); }
+.slider__fill { fill: var(--now); }
+.slider__tick { stroke: #5c6a74; }
+.slider__hour { font-size: 10px; fill: var(--muted); }
+.slider__slack { fill: var(--text); }
+.slider__slack-time { font-size: 9px; fill: var(--muted); }
+.slider__bubble { fill: var(--now); }
+.slider__bubble-text { font-size: 10px; font-weight: 600; fill: var(--page); }
+.slider__thumb {
+  fill: var(--now);
+  stroke: var(--page);
+  stroke-width: 2;
+}
+
+/* Keyboard focus shows as a ring around the drawn thumb's row. */
+.slider:has(.slider__input:focus-visible) {
+  outline: 2px solid var(--now);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The real slider: invisible, on top of the drawing, 44px tall so it's easy to grab.
+   Its thumb is 20px wide (2 × AXIS_INSET in dayAxis.ts) so it lines up with the SVG. */
+.slider__input {
+  position: absolute;
+  height: 44px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.slider__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 44px;
+}
+.slider__input::-moz-range-thumb {
+  width: 20px;
+  height: 44px;
+  border: 0;
+}

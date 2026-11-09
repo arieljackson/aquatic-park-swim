@@ -1,0 +1,133 @@
+.map {
+  position: relative;
+}
+
+.map__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Basemap layers (OpenStreetMap). */
+.map__water { fill: #14303c; }
+.map__land { fill: #22272b; }
+.map__park { fill: #26352c; }
+.map__beach { fill: #4d4639; }
+.map__building { fill: #30363b; }
+.map__road {
+  fill: none;
+  stroke: #3a4147;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.map__pier { fill: #59626a; }
+.map__dock {
+  fill: none;
+  stroke: #6b757d;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.map__breakwater {
+  fill: none;
+  stroke: #6b757d;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Current arrows: long white curves in open water; short dotted, lighter arrows in
+   the cove, where the direction is an estimate. */
+.map__arrow path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.map__arrow .map__arrow-head {
+  fill: #ffffff;
+  stroke: none;
+}
+.map__arrow--cove path { stroke: #9fb3c0; }
+.map__dots {
+  stroke-width: 3;
+  /* Near-zero dashes with round caps draw as dots, 7 units apart. */
+  stroke-dasharray: 0.1 7;
+}
+.map__dots--key {
+  stroke-width: 2;
+  stroke-dasharray: 0.1 4;
+}
+
+.map__label {
+  fill: #c4ccd2;
+  font-family: var(--sans);
+  stroke: #14303c;
+  paint-order: stroke;
+  stroke-linejoin: round;
+}
+
+/* Boxes floating over the map. */
+.map__tag,
+.map__key,
+.map__north {
+  position: absolute;
+  margin: 0;
+  background: rgba(13, 19, 23, 0.85);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+.map__tag {
+  left: 12px;
+  top: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.map__key {
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--text-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.map__key-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map__north {
+  right: 12px;
+  top: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+.map__credit {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  margin: 0;
+  font-size: 9px;
+  color: var(--label);
+}
+
+@media (min-width: 1024px) {
+  .map {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+}

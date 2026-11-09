@@ -1,0 +1,65 @@
+/* The look: dark page, IBM Plex Sans for
+   text, IBM Plex Mono for numbers, one orange accent for "now". */
+:root {
+  --page: #0d1317;
+  --panel: #151d22;
+  --line: #243038; /* dividers between panels */
+  --line-strong: #2a3740; /* button and box borders */
+  --grid: #1c262d; /* chart gridlines */
+  --text: #e8edf0;
+  --text-soft: #c4ccd2;
+  --muted: #9aa7b0;
+  --label: #8b98a2; /* small caps labels */
+  --data: #4fb3d9; /* tide and current curves */
+  --data-fill: #14303c;
+  --now: #ff8a3d;
+
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  color-scheme: dark;
+  font-family: var(--sans);
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--page);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+}
+
+/* Phone first: one centered column. At 1024px and wider the page widens and app.css
+   switches to two columns. */
+main {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  main {
+    max-width: 1280px;
+  }
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The small caps label at the top of each panel. */
+.label {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.mono {
+  font-family: var(--mono);
+}

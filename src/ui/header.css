@@ -1,0 +1,99 @@
+/* Phone: name and Now on top, the day row underneath (placed by name). */
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'title now'
+    'day   day';
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 14px;
+}
+
+.header__title { grid-area: title; }
+.header__day { grid-area: day; }
+.header__now { grid-area: now; }
+
+/* Laptop: one row, the day in the middle. */
+@media (min-width: 1024px) {
+  .header {
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: 'title day now';
+    padding: 0 40px;
+    height: 76px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .header__now {
+    justify-self: end;
+  }
+
+  .header__when {
+    width: 300px;
+  }
+}
+
+.header__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.header__now {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--now);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--now);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Already showing now: the button goes quiet. */
+.header__now:disabled {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  cursor: default;
+}
+
+.header__day {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header__step {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 18px;
+}
+
+.header__when {
+  flex-grow: 1;
+  height: 44px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.header__date {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.header__time {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--now);
+}

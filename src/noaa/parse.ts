@@ -1,0 +1,70 @@
+// Raw NOAA JSON → domain types. Assumes responses were requested with time_zone=gmt.
+
+import type { CurrentEvent, CurrentSample, TideEvent, TideSample } from '../domain/types'
+import type { RawCurrentResponse, RawTideResponse } from './raw'
+
+/** "2026-11-06 05:03" (GMT) → Date */
+export function parseGmt(s: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(s)
+  if (!match) throw new Error(`Unexpected NOAA time format: "${s}"`)
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  // Date.UTC counts months from 0 (January = 0), so subtract 1.
+  return new Date(Date.UTC(year, month - 1, day, hour, minute))
+}
+
+function toNumber(v: string | number, what: string): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  if (!Number.isFinite(n)) throw new Error(`Unexpected NOAA ${what}: "${v}"`)
+  return n
+}
+
+export function parseTideSamples(raw: RawTideResponse): TideSample[] {
+  return raw.predictions.map((p) => ({
+    time: parseGmt(p.t),
+    heightFt: toNumber(p.v, 'tide height'),
+  }))
+}
+
+export function parseTideEvents(raw: RawTideResponse): TideEvent[] {
+  return raw.predictions.map((p) => {
+    if (p.type !== 'H' && p.type !== 'L') throw new Error(`Unexpected tide event type: "${p.type}"`)
+    return {
+      time: parseGmt(p.t),
+      heightFt: toNumber(p.v, 'tide height'),
+      kind: p.type === 'H' ? 'high' : 'low',
+    }
+  })
+}
+
+export function parseCurrentSamples(raw: RawCurrentResponse): CurrentSample[] {
+  return raw.current_predictions.cp.map((c) => ({
+    time: parseGmt(c.Time),
+    velocityKt: toNumber(c.Velocity_Major, 'current velocity'),
+  }))
+}
+
+const CURRENT_EVENT_KIND = { slack: 'slack', flood: 'maxFlood', ebb: 'maxEbb' } as const
+
+export function parseCurrentEvents(raw: RawCurrentResponse): CurrentEvent[] {
+  return raw.current_predictions.cp.map((c) => {
+    if (!c.Type || !(c.Type in CURRENT_EVENT_KIND)) {
+      throw new Error(`Unexpected current event type: "${c.Type}"`)
+    }
+    return {
+      time: parseGmt(c.Time),
+      kind: CURRENT_EVENT_KIND[c.Type],
+      speedKt: Math.abs(toNumber(c.Velocity_Major, 'current velocity')),
+    }
+  })
+}
+
+/** Flood/ebb directions are repeated on every row; take them from the first. */
+export function parseCurrentDirections(raw: RawCurrentResponse): { floodDirDeg: number; ebbDirDeg: number } {
+  const first = raw.current_predictions.cp[0]
+  if (!first) throw new Error('NOAA returned no current predictions')
+  return { floodDirDeg: first.meanFloodDir, ebbDirDeg: first.meanEbbDir }
+}

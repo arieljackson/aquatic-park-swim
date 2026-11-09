@@ -1,0 +1,136 @@
+/* Phone (default): everything in one column, in source order. */
+.layout {
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--muted);
+}
+
+.day {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A bordered box around one widget (the panels use the same look). */
+.tile {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--page);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tile h3 {
+  margin: 0;
+}
+
+.day__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--label);
+}
+
+.temps {
+  margin: 0 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.temp {
+  padding: 14px 16px;
+  border: 1px dashed #2f3d46;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.temp__value {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  color: #6c7a84;
+}
+
+.caption {
+  margin: 16px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--label);
+}
+
+.caption p {
+  margin: 0 0 8px;
+}
+
+.caption a {
+  color: var(--text-soft);
+}
+
+.debug {
+  margin: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.debug table {
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.debug td,
+.debug th {
+  padding: 2px 8px 2px 0;
+  text-align: left;
+}
+
+.debug h2 {
+  font-size: 13px;
+}
+
+/* Laptop and wider: two columns. Numbers, chart and slider on the left; map,
+   temperatures and caption on the right. Same components, placed by name. */
+@media (min-width: 1024px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 520px;
+    grid-template-areas:
+      'panels map'
+      'day    map'
+      'day    temps'
+      'day    caption';
+    /* The last row takes any leftover height, so the rows above stay snug. */
+    grid-template-rows: auto auto auto 1fr;
+    gap: 20px 24px;
+    padding: 20px 40px 0;
+    align-items: start;
+  }
+
+  .layout__panels { grid-area: panels; }
+  .layout__map { grid-area: map; }
+  .layout__day { grid-area: day; }
+  .layout__temps { grid-area: temps; }
+  .layout__caption { grid-area: caption; }
+
+  .day {
+    padding: 0;
+  }
+
+  .temps,
+  .caption {
+    margin: 0;
+  }
+
+  .debug {
+    margin: 24px 40px;
+  }
+}

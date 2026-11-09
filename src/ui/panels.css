@@ -1,0 +1,98 @@
+/* A 2-column grid of separate tiles. */
+.panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 16px 0;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--page);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel--wide {
+  grid-column: span 2;
+}
+
+.panel p {
+  margin: 0;
+}
+
+/* One line that never wraps, so the tile never changes shape. If it ever overflows,
+   it's cut off with "…" rather than pushing the tile wider. */
+.panel__line {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel__state {
+  display: flex;
+  /* Top-aligned, so the glyph sits next to the first word ("SLACK" has no second). */
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.panel__state-words {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.panel__big {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.panel__unit {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.panel__detail {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+
+.panel__slack-kind {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel__countdown {
+  font-size: 15px;
+  color: var(--now);
+}
+
+/* The state arrow keeps its size next to long words. */
+.panel__state svg {
+  flex-shrink: 0;
+}
+
+/* Laptop: the four tiles in one row. */
+@media (min-width: 1024px) {
+  .panels {
+    /* minmax(0, …) keeps each column's width fixed, whatever text is inside. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1.1fr);
+    padding: 0;
+  }
+
+  .panel--wide {
+    grid-column: span 1;
+  }
+
+  /* Slightly smaller big numbers so the longest line ("12:47 AM in 1:07") fits. */
+  .panel__big {
+    font-size: 26px;
+  }
+}
