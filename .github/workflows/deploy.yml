@@ -1,6 +1,10 @@
-# Builds the site and publishes it to GitHub Pages on every push to main.
+# On every push to main:
+# 1. Checks the app: lint and build. (Vercel builds and deploys the app itself, at
+#    https://aquaticpark.vercel.app/, but doesn't run lint, so this still catches mistakes.)
+# 2. Publishes the redirect page in pages-redirect/ to GitHub Pages, so the old address
+#    (arieljackson.github.io/aquatic-park-swim/) sends visitors to the new one.
 # Can also be run by hand from the repo's Actions tab ("Run workflow").
-name: Deploy to GitHub Pages
+name: Check, and redirect GitHub Pages
 
 on:
   push:
@@ -31,9 +35,10 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - uses: actions/configure-pages@v5
+      # Publish only the redirect page, not the built app (dist/).
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: pages-redirect
 
   deploy:
     needs: build

@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  The app used to live on GitHub Pages (arieljackson.github.io/aquatic-park-swim/).
+  It's now at https://aquaticpark.vercel.app/. This page is all that GitHub Pages
+  serves now: it sends visitors to the new address right away.
+
+  The old link's ?t=… (a chosen time) and ?debug are kept:
+    new address = https://aquaticpark.vercel.app/ + old "?…" part + old "#…" part
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aquatic Park has moved</title>
+    <!-- Tell search engines the real page is the new one, and not to list this one. -->
+    <link rel="canonical" href="https://aquaticpark.vercel.app/" />
+    <meta name="robots" content="noindex" />
+    <script>
+      window.location.replace('https://aquaticpark.vercel.app/' + window.location.search + window.location.hash)
+    </script>
+    <!-- Without JavaScript: a plain redirect (it can't keep ?t=…). -->
+    <noscript><meta http-equiv="refresh" content="0; url=https://aquaticpark.vercel.app/" /></noscript>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px 16px;
+        background: #0d1317;
+        color: #e8edf0;
+        font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      a {
+        color: #ff8a3d;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Seen only for a moment, or if the redirect doesn't happen. -->
+    <p>Aquatic Park has moved to <a href="https://aquaticpark.vercel.app/">aquaticpark.vercel.app</a>.</p>
+  </body>
+</html>
