@@ -8,7 +8,6 @@
 // Tapping or dragging on either chart picks a time.
 
 import type { PointerEvent, ReactNode } from 'react'
-import { slackKind } from '../../domain/conditions'
 import type { Conditions, PredictionData } from '../../domain/types'
 import { formatTime } from '../../time/format'
 import type { DayAxis } from '../dayAxis'
@@ -68,8 +67,12 @@ export function TideChart({ data, conditions, axis, width, onSelect }: ChartProp
   const lastX = samples.length > 0 ? axis.toX(samples[samples.length - 1].time) : axis.left
   const area = `M${line} L${lastX},${plotBottom} L${firstX},${plotBottom} Z`
 
-  const labels: Label[] = data.tide.events.filter((e) => inDay(e.time)).map((e) => {
-    const text = `${e.kind === 'high' ? 'High' : 'Low'} ${e.heightFt.toFixed(1)} ft · ${formatTime(e.time)}`
+  const tideEvents = data.tide.events.filter((e) => inDay(e.time))
+  // A dot on the curve at each high and low, so it's clear which point a label belongs to.
+  const eventDots = tideEvents.map((e) => ({ x: axis.toX(e.time), y: y(e.heightFt) }))
+  const labels: Label[] = tideEvents.map((e) => {
+    // Just height and time, e.g. "5.8 ft · 3:12 PM": the label's place says high or low.
+    const text = `${e.heightFt.toFixed(1)} ft · ${formatTime(e.time)}`
     // Highs get their label above the curve, lows below.
     const labelY = e.kind === 'high' ? y(e.heightFt) - 8 : y(e.heightFt) + 15
     return centeredLabel(axis.toX(e.time), labelY, text, axis)
@@ -90,6 +93,9 @@ export function TideChart({ data, conditions, axis, width, onSelect }: ChartProp
       <HourAxis axis={axis} plotTop={TOP_SPACE} plotBottom={plotBottom} />
       <path d={area} className="chart__area" />
       <path d={`M${line}`} className="chart__line" />
+      {eventDots.map((dot) => (
+        <circle key={dot.x} cx={dot.x} cy={dot.y} r={2.5} className="chart__event" />
+      ))}
       {labels.map((label) => (
         <text key={label.text} x={label.x} y={label.y} textAnchor={label.anchor} className="chart__label">
           {label.text}
@@ -123,18 +129,17 @@ export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartP
   const lastX = samples.length > 0 ? axis.toX(samples[samples.length - 1].time) : axis.left
   const area = `M${line} L${lastX},${zeroY} L${firstX},${zeroY} Z`
 
-  // On a narrow chart (a phone) there isn't room for full labels: slack shows only its
-  // time (the dot already says it's slack) and each peak only its speed.
+  // Slack gets a ◆ but no label: the time slider above shows every slack time.
+  // On a narrow chart (a phone) each peak shows only its speed.
   const compact = axis.right - axis.left < 420
   const events = data.current.events
   const slackDots: number[] = []
   const labels: Label[] = []
-  events.forEach((e, index) => {
+  events.forEach((e) => {
     if (!inDay(e.time)) return
     const x = axis.toX(e.time)
     if (e.kind === 'slack') {
       slackDots.push(x)
-      labels.push(slackLabel(x, zeroY, slackKind(events, index), formatTime(e.time), axis, compact))
       return
     }
     const isFlood = e.kind === 'maxFlood'
@@ -176,8 +181,13 @@ export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartP
       <path d={area} className="chart__area" />
       <path d={`M${line}`} className="chart__line" />
       <line x1={axis.left} y1={zeroY} x2={axis.right} y2={zeroY} className="chart__zero" />
+      {/* Slack: the same ◆ as on the time slider, on the zero line. */}
       {slackDots.map((x) => (
-        <circle key={x} cx={x} cy={zeroY} r={3} className="chart__slack" />
+        <path
+          key={x}
+          d={`M${x},${zeroY - 5} L${x + 3.5},${zeroY} L${x},${zeroY + 5} L${x - 3.5},${zeroY} Z`}
+          className="chart__slack"
+        />
       ))}
       {labels.map((label) => (
         <text key={label.text} x={label.x} y={label.y} textAnchor={label.anchor} className="chart__label">
@@ -189,32 +199,6 @@ export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartP
       )}
     </ChartFrame>
   )
-}
-
-/**
- * Slack labels go where the curve isn't. Around a high slack the curve is above the
- * line before it (flood) and below after (ebb), so the label goes above-right. Around a
- * low slack it's the other way, so below-right. Near the right edge the label keeps its
- * row but slides left to end at the edge.
- */
-function slackLabel(
-  x: number,
-  zeroY: number,
-  kind: 'high' | 'low' | null,
-  time: string,
-  axis: DayAxis,
-  compact: boolean,
-): Label {
-  let name = 'Slack'
-  if (kind === 'high') name = 'High slack'
-  if (kind === 'low') name = 'Low slack'
-  let text = `${name} ${time}`
-  if (compact) text = time
-  const y = kind === 'low' ? zeroY + 15 : zeroY - 7
-  if (x + 6 + textWidth(text) <= axis.right) {
-    return { x: x + 6, y, text, anchor: 'start' }
-  }
-  return { x: axis.right, y, text, anchor: 'end' }
 }
 
 // ---------------------------------------------------------------- Shared pieces

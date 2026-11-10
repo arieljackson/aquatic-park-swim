@@ -62,6 +62,7 @@ export type Conditions = {
     directionDeg: number | null // null at slack
     /** The peak of the flood or ebb we're in, between the slacks around `at` (may already be past). */
     cycleMax: CurrentEvent | null
+    /** The first slack after `at`; while the current is slack, the slack we're in (may be just past). */
     nextSlack: SlackEvent | null
     /** The first slack of the other kind after nextSlack (next high slack → this is a low slack). */
     nextSlackOfOtherKind: SlackEvent | null

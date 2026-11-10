@@ -32,11 +32,10 @@
   stroke: var(--line-strong);
   stroke-dasharray: 3 3;
 }
-.chart__slack {
-  fill: var(--page);
-  stroke: var(--text);
-  stroke-width: 1.5;
-}
+/* Slack ◆: filled, like the slider's. */
+.chart__slack { fill: var(--text); }
+/* High and low tide: a small dot on the curve, the color of the labels. */
+.chart__event { fill: var(--text-soft); }
 .chart__now line {
   stroke: var(--now);
   stroke-width: 1.25;

@@ -30,3 +30,6 @@ references/
 CLAUDE.md
 CLAUDE.local.md
 .claude/
+
+# Decision log: local only for now
+docs/decisions.md

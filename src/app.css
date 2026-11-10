@@ -4,6 +4,18 @@
   flex-direction: column;
 }
 
+/* Phone only (on a laptop the slider lives inside .day instead).
+   Right after the map; once you scroll to it, it stays pinned to the top of the
+   screen for the rest of the page. The solid background hides what scrolls under it,
+   and z-index keeps it above the map's labels and arrows. */
+.layout__slider {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 12px 16px 0;
+  background: var(--page);
+}
+
 .message {
   margin: 0;
   padding: 12px 16px;
@@ -30,12 +42,6 @@
 
 .tile h3 {
   margin: 0;
-}
-
-.day__hint {
-  margin: 0;
-  font-size: 11px;
-  color: var(--label);
 }
 
 .temps {

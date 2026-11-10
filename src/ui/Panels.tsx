@@ -13,6 +13,10 @@ const STATE_WORDS: Record<CurrentState, [string, string]> = {
   strongEbb: ['Strong', 'ebb'],
 }
 
+// Wording, the same in every tile: sentence case ("Max 1.4 kt", "High 5.8 ft"); a time
+// on its own line is just the time ("9:19 AM", "3:12 PM today"); a colon only where a
+// name and a time share a line ("Next low: 3:40 PM today").
+//
 // Every tile always has the same lines, and no line wraps, so tiles keep their shape
 // whatever the time or the numbers. Lines are sized for their longest text
 // (e.g. "12:47 AM tomorrow").
@@ -42,10 +46,12 @@ export function Panels({ conditions }: { conditions: Conditions }) {
           <span className="panel__unit"> kt</span>
         </p>
         <p className="panel__detail panel__line">
-          {current.cycleMax === null ? '\u00a0' : `max ${current.cycleMax.speedKt.toFixed(1)} kt`}
+          {current.cycleMax === null ? '\u00a0' : `Max ${current.cycleMax.speedKt.toFixed(1)} kt`}
         </p>
         <p className="panel__detail panel__line">
-          {current.cycleMax === null ? '\u00a0' : `at ${formatTime(current.cycleMax.time)}`}
+          {/* Just the time, no day: this is the narrowest tile on a laptop, and the
+              longest "12:47 AM tomorrow" wouldn't fit. */}
+          {current.cycleMax === null ? '\u00a0' : formatTime(current.cycleMax.time)}
         </p>
       </section>
 
@@ -61,7 +67,7 @@ export function Panels({ conditions }: { conditions: Conditions }) {
           <span className="panel__unit"> ft {tide.trend === 'rising' ? '▲' : '▼'}</span>
         </p>
         <p className="panel__detail panel__line">
-          {nextTide === null ? '\u00a0' : `${nextTide.kind} ${nextTide.heightFt.toFixed(1)} ft`}
+          {nextTide === null ? '\u00a0' : `${nextTide.kind === 'high' ? 'High' : 'Low'} ${nextTide.heightFt.toFixed(1)} ft`}
         </p>
         <p className="panel__detail panel__line">
           {nextTide === null ? '\u00a0' : `${formatTime(nextTide.time)} ${formatRelativeDay(nextTide.time, at)}`}
@@ -88,7 +94,10 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
       <p className="panel__big panel__line">
         <span className="mono">{time.clock}</span>
         <span className="panel__unit mono"> {time.period}</span>
-        <span className="panel__countdown mono"> in {formatCountdown(at, nextSlack.time)}</span>
+        {/* In slack now: the slack shown is the one we're in, so no countdown. */}
+        <span className="panel__countdown mono">
+          {conditions.current.state === 'slack' ? ' now' : ` in ${formatCountdown(at, nextSlack.time)}`}
+        </span>
       </p>
       <p className="panel__detail panel__line">
         <span className="panel__slack-kind">{nextSlack.kind === 'high' ? 'High slack' : 'Low slack'}</span>

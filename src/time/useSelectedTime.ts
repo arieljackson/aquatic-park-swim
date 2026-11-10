@@ -12,6 +12,7 @@ import { addPacificDays, formatUrlTime, fromPacific, parseDateString, parseUrlTi
 
 const MINUTE = 60 * 1000
 const HOUR = 60 * MINUTE
+const URL_UPDATE_DELAY_MS = 300
 
 function readPinnedFromUrl(): Date | null {
   const t = new URLSearchParams(window.location.search).get('t')
@@ -41,14 +42,27 @@ export function useSelectedTime(): SelectedTime {
 
   // Keep the URL in sync. replaceState updates the address bar without adding
   // a browser history entry for every step.
+  //
+  // Browsers limit how often a page may call replaceState: Chrome throttles it, and
+  // Safari throws an error after 100 calls in 30 seconds. Dragging the slider changes
+  // the time many times a second, so we wait until the time has stayed put for
+  // URL_UPDATE_DELAY_MS, and only then write the URL. Each new time cancels the
+  // previous timer, so a fast drag ends in a single write.
   useEffect(() => {
-    const url = new URL(window.location.href)
-    if (pinned === null) {
-      url.searchParams.delete('t')
-    } else {
-      url.searchParams.set('t', formatUrlTime(pinned))
-    }
-    window.history.replaceState(null, '', url)
+    const timer = setTimeout(() => {
+      const url = new URL(window.location.href)
+      if (pinned === null) {
+        url.searchParams.delete('t')
+      } else {
+        url.searchParams.set('t', formatUrlTime(pinned))
+      }
+      try {
+        window.history.replaceState(null, '', url)
+      } catch {
+        // If the browser refuses anyway, the URL is just out of date; the page keeps working.
+      }
+    }, URL_UPDATE_DELAY_MS)
+    return () => clearTimeout(timer)
   }, [pinned])
 
   const time = pinned ?? now

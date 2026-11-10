@@ -24,6 +24,27 @@
   stroke-width: 2;
 }
 
+/* NOW, left of the track: the header's NOW button, smaller. Orange when you've
+   picked another time; quiet when already showing now. */
+.slider__now {
+  position: absolute;
+  left: 0;
+  padding: 0;
+  border: 1px solid var(--now);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--now);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.slider__now:disabled {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  cursor: default;
+}
+
 /* Keyboard focus shows as a ring around the drawn thumb's row. */
 .slider:has(.slider__input:focus-visible) {
   outline: 2px solid var(--now);

@@ -152,7 +152,28 @@ export function conditionsAt(at: Date, data: PredictionData): Conditions | null 
   if (phase === 'ebb') directionDeg = data.current.ebbDirDeg
 
   const events = data.current.events
-  const upcomingSlacks = slacksAfter(events, t)
+
+  // "Next slack" normally means the first slack after t. But while the current is slack
+  // (under the threshold), we're inside a slack, and its exact NOAA time may have just
+  // passed. Then the slack to show is the one we're in, not the one ~6 hours away.
+  // The one we're in is whichever slack time is closer to t: the last one before it or
+  // the first one after it.
+  let searchSlacksAfter = t
+  if (state === 'slack') {
+    const lastSlackIndex = events.findLastIndex((event) => event.kind === 'slack' && event.time.getTime() <= t)
+    const firstSlackAfter = events.find((event) => event.kind === 'slack' && event.time.getTime() > t)
+    if (lastSlackIndex !== -1) {
+      const lastSlackMs = events[lastSlackIndex].time.getTime()
+      const sinceLast = t - lastSlackMs
+      let untilNext = Infinity
+      if (firstSlackAfter !== undefined) untilNext = firstSlackAfter.time.getTime() - t
+      if (sinceLast < untilNext) {
+        // Search from just before that slack, so it's the first one found.
+        searchSlacksAfter = lastSlackMs - 1
+      }
+    }
+  }
+  const upcomingSlacks = slacksAfter(events, searchSlacksAfter)
   const nextSlack = upcomingSlacks[0] ?? null
   let nextSlackOfOtherKind: SlackEvent | null = null
   if (nextSlack !== null) {
