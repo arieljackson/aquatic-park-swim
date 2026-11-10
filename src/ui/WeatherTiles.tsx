@@ -91,21 +91,26 @@ export function WeatherTiles({ time }: { time: Date }) {
     }
   }
 
+  // Still waiting for a tile's source: its value pulses (see .is-loading).
+  const airLoading = weather.measured === null && weather.forecast === null
+  const waterLoading = water.samples === null && water.error === null
+  const pulse = (loading: boolean) => (loading ? ' is-loading' : '')
+
   return (
     <div className="temps">
       <section className="temp">
         <h2 className="label">Air temp</h2>
-        <p className="temp__value mono">{airText}</p>
+        <p className={`temp__value mono${pulse(airLoading)}`}>{airText}</p>
         <p className="temp__detail">{airDetail}</p>
       </section>
       <section className="temp">
         <h2 className="label">Water temp</h2>
-        <p className="temp__value mono">{waterText}</p>
+        <p className={`temp__value mono${pulse(waterLoading)}`}>{waterText}</p>
         <p className="temp__detail">{waterDetail}</p>
       </section>
       <section className="temp">
         <h2 className="label">Wind</h2>
-        <p className="temp__value mono">
+        <p className={`temp__value mono${pulse(airLoading)}`}>
           {windSpeed}
           <span className="temp__unit"> mph {windDirection}</span>
         </p>
@@ -113,7 +118,7 @@ export function WeatherTiles({ time }: { time: Date }) {
       </section>
       <section className="temp">
         <h2 className="label">Water quality</h2>
-        <p className={`temp__value temp__value--words ${qualityClass}`}>{qualityText}</p>
+        <p className={`temp__value temp__value--words ${qualityClass}${pulse(quality.loading)}`}>{qualityText}</p>
         <p className="temp__detail">{qualityDetail}</p>
         {/* The lab results don't include advisories (e.g. after sewer overflows): link to them. */}
         <a className="temp__link" href="https://webapps.sfpuc.org/sapps/beachesandbay.html">

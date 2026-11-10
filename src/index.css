@@ -65,3 +65,25 @@ button {
 .mono {
   font-family: var(--mono);
 }
+
+/* Something still loading: fades gently in and out. Off for people who've asked their
+   device for less motion. */
+.is-loading {
+  animation: loading-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-loading {
+    animation: none;
+  }
+}

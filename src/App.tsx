@@ -11,13 +11,19 @@
 
 import { usePredictions } from './sources/usePredictions'
 import { conditionsAt } from './domain/conditions'
-import type { Conditions, PredictionData } from './domain/types'
+import type { Conditions, CurrentEvent, PredictionData } from './domain/types'
 import { formatDay } from './time/format'
 import { useSelectedTime } from './time/useSelectedTime'
 import { useWeather } from './sources/useWeather'
 import type { SelectedTime } from './time/useSelectedTime'
-import { CurrentChart, TideChart } from './ui/charts/DayChart'
-import { WindChart, WindKey } from './ui/charts/WindChart'
+import {
+  CURRENT_CHART_HEIGHT,
+  ChartPlaceholder,
+  CurrentChart,
+  TIDE_CHART_HEIGHT,
+  TideChart,
+} from './ui/charts/DayChart'
+import { WIND_CHART_HEIGHT, WindChart, WindKey } from './ui/charts/WindChart'
 import { useElementWidth } from './ui/charts/useElementWidth'
 import { dayAxis } from './ui/dayAxis'
 import { DebugTables } from './ui/DebugTables'
@@ -43,41 +49,39 @@ function App() {
     <main>
       <Header selected={selected} />
       {error !== null && <p className="message">Couldn’t load NOAA data: {error}</p>}
-      {data === null && error === null && <p className="message">Loading NOAA predictions…</p>}
 
       <div className="layout">
-        {conditions !== null && (
-          <div className="layout__map">
-            <CurrentMap phase={conditions.current.phase} speedKt={conditions.current.speedKt} />
-          </div>
-        )}
-        {!isWide && aquaticPark !== null && (
+        {/* Everything is drawn from the start and fills in as its data arrives: the map
+            without arrows, the tiles with "--", the charts as empty boxes. */}
+        <div className="layout__map">
+          <CurrentMap
+            phase={conditions === null ? null : conditions.current.phase}
+            speedKt={conditions === null ? 0 : conditions.current.speedKt}
+          />
+        </div>
+        {!isWide && (
           <div className="layout__slider">
-            <TimeTile data={aquaticPark} selected={selected} />
+            <TimeTile currentEvents={aquaticPark === null ? [] : aquaticPark.current.events} selected={selected} />
           </div>
         )}
-        {conditions !== null && (
-          <div className="layout__panels">
-            <Panels conditions={conditions} />
-          </div>
-        )}
+        <div className="layout__panels">
+          <Panels conditions={conditions} />
+        </div>
         {/* Right after the top tiles on a phone, so all the numbers come before the charts.
             (On a laptop it sits under the map: the grid places it by name.) */}
         <div className="layout__temps">
           <WeatherTiles time={selected.time} />
         </div>
-        {aquaticPark !== null && (
-          <div className="layout__day">
-            <DaySection
-              data={aquaticPark}
-              conditions={conditions}
-              time={selected.time}
-              onSelect={selected.setTime}
-              includeSlider={isWide}
-              selected={selected}
-            />
-          </div>
-        )}
+        <div className="layout__day">
+          <DaySection
+            data={aquaticPark}
+            conditions={conditions}
+            time={selected.time}
+            onSelect={selected.setTime}
+            includeSlider={isWide}
+            selected={selected}
+          />
+        </div>
         <div className="layout__caption caption">
           <p>
             Calculations for Aquatic Cove roughly estimated by: current occurs 25 min before Golden Gate at half
@@ -109,7 +113,7 @@ function App() {
 }
 
 type DaySectionProps = {
-  data: PredictionData
+  data: PredictionData | null // null while loading: tide and current charts show empty boxes
   conditions: Conditions | null
   time: Date
   onSelect: (time: Date) => void
@@ -125,25 +129,36 @@ type DaySectionProps = {
 function DaySection({ data, conditions, time, onSelect, includeSlider, selected }: DaySectionProps) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const axis = dayAxis(time, width)
-  const chartProps = { data, conditions, axis, width, onSelect }
   // Loaded and cached once (see useWeather), so the weather tiles share this data.
   const weather = useWeather(time)
+  const weatherLoading = weather.measured === null && weather.forecast === null
   return (
     <section className="day">
       <h2 className="label">{formatDay(time)} · Pacific Time</h2>
-      {includeSlider && <TimeTile data={data} selected={selected} />}
+      {includeSlider && <TimeTile currentEvents={data === null ? [] : data.current.events} selected={selected} />}
       <div className="tile">
         <h3 className="label">Tide</h3>
-        {/* Measured here; the current chart below has the same width. */}
-        <div ref={ref}>{width > 0 && <TideChart {...chartProps} />}</div>
+        {/* Measured here; the charts below have the same width. */}
+        <div ref={ref}>
+          {data === null && <ChartPlaceholder height={TIDE_CHART_HEIGHT} />}
+          {data !== null && width > 0 && (
+            <TideChart data={data} conditions={conditions} axis={axis} width={width} onSelect={onSelect} />
+          )}
+        </div>
       </div>
       <div className="tile">
         <h3 className="label">Current</h3>
-        {width > 0 && <CurrentChart {...chartProps} />}
+        {data === null && <ChartPlaceholder height={CURRENT_CHART_HEIGHT} />}
+        {data !== null && width > 0 && (
+          <CurrentChart data={data} conditions={conditions} axis={axis} width={width} onSelect={onSelect} />
+        )}
       </div>
       <div className="tile">
         <h3 className="label">Wind</h3>
-        {width > 0 && <WindChart weather={weather} axis={axis} width={width} time={time} onSelect={onSelect} />}
+        {weatherLoading && <ChartPlaceholder height={WIND_CHART_HEIGHT} />}
+        {!weatherLoading && width > 0 && (
+          <WindChart weather={weather} axis={axis} width={width} time={time} onSelect={onSelect} />
+        )}
         <WindKey />
       </div>
     </section>
@@ -151,7 +166,7 @@ function DaySection({ data, conditions, time, onSelect, includeSlider, selected 
 }
 
 type TimeTileProps = {
-  data: PredictionData
+  currentEvents: CurrentEvent[] // empty while loading: the slider works, slack ◆ appear later
   selected: SelectedTime
 }
 
@@ -159,7 +174,7 @@ type TimeTileProps = {
  * The time slider in its tile. It measures its own width, so it works in either spot.
  * Its tile is as wide as the chart tiles, so the slider and the charts share the same day axis.
  */
-function TimeTile({ data, selected }: TimeTileProps) {
+function TimeTile({ currentEvents, selected }: TimeTileProps) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const time = selected.time
   const axis = dayAxis(time, width)
@@ -174,7 +189,7 @@ function TimeTile({ data, selected }: TimeTileProps) {
             axis={axis}
             width={width}
             time={time}
-            currentEvents={data.current.events}
+            currentEvents={currentEvents}
             onSelect={selected.setTime}
             isLive={selected.isLive}
             onNow={selected.goLive}

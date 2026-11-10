@@ -12,6 +12,7 @@
 // - Dotted curving "eddy" arrows in the cove, like the back-eddy arrows in the Dolphin
 //   Club guide: an estimate of how water circulates. They grow with speed, but not on
 //   the 1 kt scale (see MIN_CURVE_FRACTION).
+// While the current is still loading (phase null), the cove is drawn without arrows.
 
 import type { CurrentPhase } from '../../domain/types'
 import { useElementWidth } from '../charts/useElementWidth'
@@ -49,7 +50,8 @@ const MIN_CURVE_FRACTION = 0.3
 const MAX_CURVE_FRACTION = 0.75
 
 
-type Props = { phase: CurrentPhase; speedKt: number }
+/** `phase` is null while the current is still loading: the map is drawn without arrows. */
+type Props = { phase: CurrentPhase | null; speedKt: number }
 
 export function CurrentMap({ phase, speedKt }: Props) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
@@ -61,7 +63,8 @@ export function CurrentMap({ phase, speedKt }: Props) {
 
   // Flood flows right (+1), ebb flows left (−1).
   const direction = phase === 'ebb' ? -1 : 1
-  const showArrows = phase !== 'slack'
+  const showArrows = phase === 'flood' || phase === 'ebb'
+  const showSlack = phase === 'slack'
   const drawnKt = Math.min(speedKt, MAX_DRAWN_KT)
 
   return (
@@ -123,7 +126,7 @@ export function CurrentMap({ phase, speedKt }: Props) {
 
         {/* Slack: a ◆ where each straight arrow would be (the same ◆ as on the slider
             and the Current tile). Those spots are already checked to be over water. */}
-        {!showArrows && (
+        {showSlack && (
           <g>
             {OPEN_WATER_ARROWS.map((arrow) => (
               <SlackDiamond key={`${arrow.x},${arrow.y}`} x={arrow.x} y={arrow.y} halfSize={7} />
@@ -155,7 +158,8 @@ export function CurrentMap({ phase, speedKt }: Props) {
       {/* OpenStreetMap's license asks for this credit wherever the map is shown. */}
       <p className="map__credit">© OpenStreetMap contributors</p>
       <NorthArrow />
-      {showArrows ? (
+      {phase === null && <p className="map__key mono is-loading">LOADING CURRENT…</p>}
+      {showArrows && (
         <div className="map__key mono">
           <span className="map__key-row">
             <KeyArrow lengthPx={keyLengthPx} light={false} />1 kt
@@ -166,9 +170,8 @@ export function CurrentMap({ phase, speedKt }: Props) {
             cove movement (est)
           </span>
         </div>
-      ) : (
-        <p className="map__key mono">SLACK · little or no current</p>
       )}
+      {showSlack && <p className="map__key mono">SLACK · little or no current</p>}
     </div>
   )
 }
@@ -183,7 +186,8 @@ function curveFraction(drawnKt: number): number {
   return MIN_CURVE_FRACTION + (MAX_CURVE_FRACTION - MIN_CURVE_FRACTION) * speedShare
 }
 
-function mapDescription(phase: CurrentPhase, speedKt: number): string {
+function mapDescription(phase: CurrentPhase | null, speedKt: number): string {
+  if (phase === null) return 'Map of Aquatic Park cove. Loading the current.'
   if (phase === 'slack') return 'Map of Aquatic Park cove. Slack: little or no current.'
   const toward = phase === 'flood' ? 'east, into the bay' : 'west, toward the Golden Gate'
   return `Map of Aquatic Park cove. ${speedKt.toFixed(1)} knot ${phase} flowing ${toward}.`

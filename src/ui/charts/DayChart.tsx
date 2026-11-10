@@ -50,6 +50,8 @@ type ChartProps = {
 // ---------------------------------------------------------------- Tide
 
 const TIDE_PLOT_HEIGHT = 120
+/** The tide chart's full height, for the box drawn while it loads. */
+export const TIDE_CHART_HEIGHT = TOP_SPACE + TIDE_PLOT_HEIGHT + X_AXIS_HEIGHT
 
 export function TideChart({ data, conditions, axis, width, onSelect }: ChartProps) {
   const inDay = (time: Date) => time >= axis.dayStart && time <= axis.dayEnd
@@ -112,6 +114,8 @@ export function TideChart({ data, conditions, axis, width, onSelect }: ChartProp
 // ---------------------------------------------------------------- Current
 
 const CURRENT_PLOT_HEIGHT = 140
+/** The current chart's full height, for the box drawn while it loads. */
+export const CURRENT_CHART_HEIGHT = TOP_SPACE + CURRENT_PLOT_HEIGHT + X_AXIS_HEIGHT
 
 export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartProps) {
   const inDay = (time: Date) => time >= axis.dayStart && time <= axis.dayEnd
@@ -274,4 +278,9 @@ export function NowMarker({ x, y, top, bottom }: { x: number; y: number; top: nu
       <circle cx={x} cy={y} r={4} />
     </g>
   )
+}
+
+/** An empty, gently pulsing box the size of a chart, shown while its data loads. */
+export function ChartPlaceholder({ height }: { height: number }) {
+  return <div className="chart-placeholder is-loading" style={{ height }} aria-label="Loading chart" />
 }

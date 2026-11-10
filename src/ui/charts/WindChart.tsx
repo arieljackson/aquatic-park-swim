@@ -17,6 +17,8 @@ import { compassPoint, knotsToMph } from '../../domain/units'
 import { linearScale, ticksBetween } from './scale'
 
 const WIND_PLOT_HEIGHT = 110
+/** The wind chart's full height (see the layout below), for the box drawn while it loads. */
+export const WIND_CHART_HEIGHT = TOP_SPACE + 4 + WIND_PLOT_HEIGHT + X_AXIS_HEIGHT
 /** A direction label every this many hours. */
 const DIRECTION_EVERY_HOURS = 3
 

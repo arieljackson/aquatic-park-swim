@@ -20,7 +20,8 @@ const STATE_WORDS: Record<CurrentState, [string, string]> = {
 // Every tile always has the same lines, and no line wraps, so tiles keep their shape
 // whatever the time or the numbers. Lines are sized for their longest text
 // (e.g. "12:47 AM tomorrow").
-export function Panels({ conditions }: { conditions: Conditions }) {
+export function Panels({ conditions }: { conditions: Conditions | null }) {
+  if (conditions === null) return <LoadingPanels />
   const { at, current, tide } = conditions
   const [firstWord, secondWord] = STATE_WORDS[current.state]
   const nextTide = tide.next
@@ -119,5 +120,42 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
           : `Next ${nextSlackOfOtherKind.kind}: ${formatTime(nextSlackOfOtherKind.time)} ${formatRelativeDay(nextSlackOfOtherKind.time, at)}`}
       </p>
     </>
+  )
+}
+
+/**
+ * The same four tiles with the same lines, while the predictions load: values show as
+ * "--" and gently pulse, so the page has its final shape from the start and each tile
+ * just fills in.
+ */
+function LoadingPanels() {
+  const empty = '\u00a0'
+  return (
+    <div className="panels">
+      <section className="panel">
+        <h2 className="label">Current</h2>
+        <div className="panel__glyph" />
+        <p className="panel__state-words panel__line is-loading">--</p>
+        <p className="panel__state-words panel__line">{empty}</p>
+      </section>
+      <section className="panel">
+        <h2 className="label">Speed</h2>
+        <p className="panel__big panel__line mono is-loading">--</p>
+        <p className="panel__detail panel__line">{empty}</p>
+        <p className="panel__detail panel__line">{empty}</p>
+      </section>
+      <section className="panel panel--wide">
+        <h2 className="label">Next slack</h2>
+        <p className="panel__big panel__line mono is-loading">--:--</p>
+        <p className="panel__detail panel__line">{empty}</p>
+        <p className="panel__detail panel__line">{empty}</p>
+      </section>
+      <section className="panel panel--wide">
+        <h2 className="label">Tide</h2>
+        <p className="panel__big panel__line mono is-loading">--</p>
+        <p className="panel__detail panel__line">{empty}</p>
+        <p className="panel__detail panel__line">{empty}</p>
+      </section>
+    </div>
   )
 }
