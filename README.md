@@ -57,6 +57,7 @@ in `src/ui/map/`; they only need re-running if the map or arrow layout changes.
 ## Code layout
 
 ```
+api/        server code (a Vercel Function): water temperature from NOAA's bay model
 src/
   noaa/     the only code that knows NOAA's API and response format
   domain/   types, the Aquatic Park correction, and conditions at a given time
@@ -69,6 +70,11 @@ src/
 
 - **Tide and current predictions:** [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/)
   (stations 9414290 and SFB1203).
+- **Water temperature:** NOAA's [San Francisco Bay Operational Forecast System
+  (SFBOFS)](https://tidesandcurrents.noaa.gov/ofs/sfbofs/sfbofs.html), a computer model
+  of the bay: its surface temperature at North Point, Pier 41 (9414305), read from
+  [NOAA's OPeNDAP server](https://opendap.co-ops.nos.noaa.gov/thredds/catalog/NOAA/SFBOFS/MODELS/catalog.html).
+  A model estimate, not a measurement.
 - **Map data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 - **"Tides, Currents and Row Planning"**, Dolphin Club (Dolphin Swimming & Boating Club,
   San Francisco): the correction rule above, and the style of its current maps.
