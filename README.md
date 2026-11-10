@@ -76,7 +76,7 @@ No API keys are needed. The browser calls NOAA's tides and currents API, the Nat
 Weather Service and DataSF directly. The one exception is water temperature: NOAA's
 model server doesn't allow browser requests, so `api/water-temp.ts` runs on Vercel as a
 small server function and returns just the numbers needed
-(`/api/water-temp?from=…&to=…`). `npm run dev` can't run it, so the dev server forwards
+(`/api/water-temp?day=2026-11-08`). `npm run dev` can't run it, so the dev server forwards
 `/api` requests to the live site (see `vite.config.ts`).
 
 The map is built from OpenStreetMap data by `scripts/cove-map/build.py`, and the
@@ -90,11 +90,12 @@ api/        server code (a Vercel Function): water temperature from NOAA's bay m
 src/
   noaa/     the only code that knows NOAA's tides and currents API (predictions,
             measured air temperature and wind)
-  domain/   types, the Aquatic Park correction, and conditions at a given time
+  domain/   pure types and functions: the Aquatic Park correction, conditions at a
+            given time, units
   time/     the selected time and Pacific Time helpers
-  data/     loading and caching a day of predictions
-  weather/  the NWS forecast, water temperature (via api/), water quality (DataSF),
-            and which value to show for a given time
+  sources/  loading and caching each source for the selected day (predictions, NWS
+            forecast, water temperature via api/, water quality from DataSF), and
+            which value to show for a given time
   ui/       React components: header, map, tiles, charts, time slider
 scripts/cove-map/   builds the map shapes and arrow positions from OpenStreetMap
 ```

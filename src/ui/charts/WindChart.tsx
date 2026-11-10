@@ -9,11 +9,11 @@
 // Tapping or dragging picks a time, like the other charts.
 
 import type { DayAxis } from '../dayAxis'
-import { windAt } from '../../weather/useWeather'
-import type { WeatherData } from '../../weather/useWeather'
-import type { WindSample } from '../../weather/types'
+import { windAt } from '../../sources/useWeather'
+import type { WeatherData } from '../../sources/useWeather'
+import type { WindSample } from '../../domain/types'
 import { ChartFrame, HourAxis, NowMarker, TOP_SPACE, X_AXIS_HEIGHT } from './DayChart'
-import { compassPoint, knotsToMph } from '../../weather/units'
+import { compassPoint, knotsToMph } from '../../domain/units'
 import { linearScale, ticksBetween } from './scale'
 
 const WIND_PLOT_HEIGHT = 110

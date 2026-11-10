@@ -12,7 +12,7 @@ import { interpolate } from '../domain/conditions'
 import { fetchMeasuredWeather } from '../noaa/client'
 import { addPacificDays, pacificDateString, startOfPacificDay } from '../time/pacific'
 import { fetchForecastWeather } from './nws'
-import type { AirTempSample, Weather, WindSample } from './types'
+import type { AirTempSample, Weather, WindSample } from '../domain/types'
 
 const MINUTE = 60 * 1000
 const HOUR = 60 * MINUTE

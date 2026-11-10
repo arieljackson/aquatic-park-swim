@@ -10,10 +10,10 @@
 
 import { formatDay } from '../time/format'
 import { fromPacific, pacificDateString, parseDateString } from '../time/pacific'
-import { compassPoint, knotsToMph } from '../weather/units'
-import { airTempAt, useWeather, windAt } from '../weather/useWeather'
-import { checkLimits, useWaterQuality } from '../weather/waterQuality'
-import { useWaterTemp, waterTempAt } from '../weather/waterTemp'
+import { compassPoint, knotsToMph } from '../domain/units'
+import { airTempAt, useWeather, windAt } from '../sources/useWeather'
+import { checkLimits, useWaterQuality } from '../sources/waterQuality'
+import { useWaterTemp, waterTempAt } from '../sources/waterTemp'
 
 export function WeatherTiles({ time }: { time: Date }) {
   const water = useWaterTemp(time)

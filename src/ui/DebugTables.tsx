@@ -1,7 +1,7 @@
 // Debug view: Golden Gate (as NOAA predicts it) next to Aquatic Park (corrected),
 // for checking against NOAA's website.
 
-import type { DayData } from '../data/usePredictions'
+import type { DayData } from '../sources/usePredictions'
 import { slackKind } from '../domain/conditions'
 import type { CurrentEvent, PredictionData } from '../domain/types'
 import { formatDateTime } from '../time/format'

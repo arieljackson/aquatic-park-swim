@@ -9,12 +9,12 @@
 // you can watch the map and numbers change as you drag. On a laptop it sits above the
 // charts, where everything is already in view.
 
-import { usePredictions } from './data/usePredictions'
+import { usePredictions } from './sources/usePredictions'
 import { conditionsAt } from './domain/conditions'
 import type { Conditions, PredictionData } from './domain/types'
 import { formatDay } from './time/format'
 import { useSelectedTime } from './time/useSelectedTime'
-import { useWeather } from './weather/useWeather'
+import { useWeather } from './sources/useWeather'
 import type { SelectedTime } from './time/useSelectedTime'
 import { CurrentChart, TideChart } from './ui/charts/DayChart'
 import { WindChart, WindKey } from './ui/charts/WindChart'

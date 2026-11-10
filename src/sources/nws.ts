@@ -5,7 +5,7 @@
 // San Francisco Bay Area office (MTR): that's what api.weather.gov/points/37.807,-122.423
 // returns. Free, no key, and it allows browser requests.
 
-import type { Weather, WindSample } from './types'
+import type { Weather, WindSample } from '../domain/types'
 
 const HOURLY_FORECAST_URL = 'https://api.weather.gov/gridpoints/MTR/85,107/forecast/hourly'
 

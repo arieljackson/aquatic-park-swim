@@ -1,7 +1,7 @@
 // The only place that talks to NOAA. Everything returned from here is domain types.
 
 import type { PredictionData, StationInfo, TimeRange } from '../domain/types'
-import type { Weather } from '../weather/types'
+import type { Weather } from '../domain/types'
 import {
   parseAirTemps,
   parseCurrentDirections,

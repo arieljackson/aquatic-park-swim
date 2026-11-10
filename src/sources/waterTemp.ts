@@ -6,9 +6,7 @@
 
 import { useEffect, useState } from 'react'
 import { interpolate } from '../domain/conditions'
-import { addPacificDays, pacificDateString, startOfPacificDay } from '../time/pacific'
-
-const HOUR_MS = 60 * 60 * 1000
+import { pacificDateString } from '../time/pacific'
 
 export type WaterTempSample = { time: Date; tempF: number; kind: 'nowcast' | 'forecast' }
 
@@ -18,14 +16,13 @@ type WaterTempResponse = {
 }
 
 /**
- * The day containing `day`, plus an hour on each side, so times just after midnight
- * and just before the next one still have a value on each side to interpolate between.
+ * A San Francisco day ("2026-11-08"). The function adds an hour on each side, so times
+ * just after midnight and just before the next one can be interpolated too.
  */
-async function fetchWaterTemp(day: Date): Promise<WaterTempSample[]> {
-  const from = new Date(startOfPacificDay(day).getTime() - HOUR_MS)
-  const to = new Date(addPacificDays(startOfPacificDay(day), 1).getTime() + HOUR_MS)
-  const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
-  const response = await fetch(`/api/water-temp?${query}`)
+async function fetchWaterTemp(day: string): Promise<WaterTempSample[]> {
+  const response = await fetch(`/api/water-temp?day=${day}`)
+  // 400 = a day outside what NOAA can have (over ~40 days ago or 3+ days ahead): no data.
+  if (response.status === 400) return []
   if (!response.ok) throw new Error(`Water temperature: ${response.status}`)
   const body = (await response.json()) as WaterTempResponse
   return body.samples.map((sample) => ({ time: new Date(sample.time), tempF: sample.tempF, kind: sample.kind }))
@@ -33,10 +30,10 @@ async function fetchWaterTemp(day: Date): Promise<WaterTempSample[]> {
 
 const cache = new Map<string, Promise<WaterTempSample[]>>()
 
-function loadDay(time: Date, key: string): Promise<WaterTempSample[]> {
+function loadDay(key: string): Promise<WaterTempSample[]> {
   const cached = cache.get(key)
   if (cached) return cached
-  const request = fetchWaterTemp(time)
+  const request = fetchWaterTemp(key)
   request.catch(() => cache.delete(key)) // don't keep failures
   cache.set(key, request)
   return request
@@ -55,7 +52,7 @@ export function useWaterTemp(time: Date): Result {
 
   useEffect(() => {
     let ignore = false
-    loadDay(time, key).then(
+    loadDay(key).then(
       (samples) => {
         if (!ignore) setLoaded({ key, samples, error: null })
       },
@@ -66,8 +63,6 @@ export function useWaterTemp(time: Date): Result {
     return () => {
       ignore = true
     }
-    // Only reload when the day changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
   if (loaded === null || loaded.key !== key) return { samples: null, error: null }

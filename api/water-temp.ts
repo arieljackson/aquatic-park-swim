@@ -13,8 +13,8 @@
 // We use its point at North Point, Pier 41 (NOAA 9414305), about 0.85 km from the cove,
 // and its top water layer (the surface, where people swim).
 //
-// So for any stretch of time, past hours come from the nowcasts of the runs that cover
-// them, and hours after the newest run come from that run's forecast. NOAA keeps about
+// So for any day, past hours come from the nowcasts of the runs that cover them, and
+// hours after the newest run come from that run's forecast. NOAA keeps about
 // a month of runs online; older hours, and hours more than 48 hours past the newest
 // run, simply aren't in the answer.
 //
@@ -22,15 +22,20 @@
 // instead of the whole file (tens of MB). We ask for just one point, one layer, hourly.
 //
 // Request:
-//   /api/water-temp?from=2026-11-08T08:00:00Z&to=2026-11-09T08:00:00Z   (at most 3 days apart)
-//   /api/water-temp      (no from/to: what the newest run covers, 6 hours back to 48 ahead)
+//   /api/water-temp?day=2026-11-08   a San Francisco day, midnight to midnight, plus an
+//                                    hour on each side (for interpolating near midnight);
+//                                    from 40 days ago to 3 days ahead
+//   /api/water-temp                  what the newest run covers, 6 hours back to 48 ahead
+// Taking a day, rather than any start and end time, gives one URL per day: every visitor
+// asking for the same day gets the same cached answer, and the function can't be used to
+// send NOAA arbitrary requests.
 // Response:
 //   {
 //     "source": "NOAA SFBOFS model, North Point, Pier 41 (9414305), surface",
 //     "run": "2026-11-10T15:00:00.000Z",          (the newest run)
 //     "samples": [{ "time": "2026-11-10T09:00:00.000Z", "tempF": 62.4, "kind": "nowcast" }, ...]
 //   }
-// Errors: status 400 (bad from/to) or 502 (NOAA failed), with { "error": "..." }.
+// Errors: status 400 (bad day) or 502 (NOAA failed), with { "error": "..." }.
 
 const OPENDAP_BASE = 'https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/NOAA/SFBOFS/MODELS'
 
@@ -49,13 +54,15 @@ const MODEL_RUN_HOURS_UTC = [3, 9, 15, 21]
 const MODEL_EPOCH_MS = Date.UTC(2013, 0, 1)
 
 const HOUR_MS = 60 * 60 * 1000
+const DAY_MS = 24 * HOUR_MS
 
 /** Each run's nowcast covers this many hours before it; its forecast this many after. */
 const NOWCAST_HOURS = 6
 const FORECAST_HOURS = 48
 
-/** The longest stretch one request may ask for. */
-const MAX_WINDOW_MS = 3 * 24 * HOUR_MS
+/** Days that may be asked for, relative to today: NOAA keeps about a month of runs online, and forecasts 2 days ahead. */
+const OLDEST_DAY = -40
+const NEWEST_DAY = 3
 
 /**
  * How long Vercel's servers may reuse a response before asking NOAA again.
@@ -79,16 +86,14 @@ export async function GET(request: Request): Promise<Response> {
     // The stretch of time to cover. Default: what the newest run covers.
     let fromMs = latestMs - NOWCAST_HOURS * HOUR_MS
     let toMs = latestMs + FORECAST_HOURS * HOUR_MS
-    const params = new URL(request.url).searchParams
-    const fromParam = params.get('from')
-    const toParam = params.get('to')
-    if (fromParam !== null || toParam !== null) {
-      fromMs = Date.parse(fromParam ?? '')
-      toMs = Date.parse(toParam ?? '')
-      const valid = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs > fromMs && toMs - fromMs <= MAX_WINDOW_MS
-      if (!valid) {
-        return jsonResponse(400, { error: 'from and to must both be times, from before to, at most 3 days apart' })
+    const day = new URL(request.url).searchParams.get('day')
+    if (day !== null) {
+      if (!isAllowedDay(day)) {
+        return jsonResponse(400, { error: `day must be a date like 2026-11-08, from ${-OLDEST_DAY} days ago to ${NEWEST_DAY} days ahead` })
       }
+      // The day, plus an hour on each side.
+      fromMs = pacificMidnight(day) - HOUR_MS
+      toMs = pacificMidnight(addDays(day, 1)) + HOUR_MS
     }
 
     const stationIndex = await findStationIndex(latest.forecastUrl)
@@ -137,6 +142,45 @@ function jsonResponse(status: number, body: unknown, cacheHeader?: string): Resp
   // Cache only good answers, so an error doesn't stick around.
   if (status === 200 && cacheHeader !== undefined) headers['Cache-Control'] = cacheHeader
   return new Response(JSON.stringify(body), { status, headers })
+}
+
+// ------------------------------------------------------------------ Days
+
+/** "2026-11-08", and within OLDEST_DAY..NEWEST_DAY days of today. */
+function isAllowedDay(day: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false
+  const dayMs = Date.parse(`${day}T00:00:00Z`)
+  if (!Number.isFinite(dayMs)) return false
+  // Whole days from today (UTC dates; a day either way doesn't matter for this check):
+  //   daysFromToday = (that date − today's date) / 1 day
+  const todayMs = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  const daysFromToday = Math.round((dayMs - todayMs) / DAY_MS)
+  return daysFromToday >= OLDEST_DAY && daysFromToday <= NEWEST_DAY
+}
+
+/** "2026-11-08" + 1 → "2026-11-09" (calendar arithmetic on the date alone). */
+function addDays(day: string, days: number): string {
+  const ms = Date.parse(`${day}T00:00:00Z`) + days * DAY_MS
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
+const pacificHourFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Los_Angeles',
+  hour: 'numeric',
+  hourCycle: 'h23',
+})
+
+/**
+ * The instant of midnight in San Francisco at the start of `day`. That's 07:00 UTC in
+ * summer (PDT, UTC−7) or 08:00 UTC in winter (PST, UTC−8): try both, and keep the one
+ * a San Francisco clock reads as hour 0. (Clocks change at 2 AM, so midnight always exists.)
+ */
+function pacificMidnight(day: string): number {
+  for (const utcHour of ['07', '08']) {
+    const ms = Date.parse(`${day}T${utcHour}:00:00Z`)
+    if (Number(pacificHourFormat.format(ms)) === 0) return ms
+  }
+  throw new Error(`Could not find midnight in San Francisco on ${day}`)
 }
 
 /**

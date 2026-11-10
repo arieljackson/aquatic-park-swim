@@ -1,7 +1,7 @@
 // Raw NOAA JSON → domain types. Assumes responses were requested with time_zone=gmt.
 
 import type { CurrentEvent, CurrentSample, TideEvent, TideSample } from '../domain/types'
-import type { AirTempSample, WindSample } from '../weather/types'
+import type { AirTempSample, WindSample } from '../domain/types'
 import type { RawAirTempResponse, RawCurrentResponse, RawTideResponse, RawWindResponse } from './raw'
 
 /** "2026-11-06 05:03" (GMT) → Date */
