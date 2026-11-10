@@ -163,7 +163,7 @@ export function CurrentMap({ phase, speedKt }: Props) {
           <span className="map__key-row">
             {/* Eddy arrows aren't on the 1 kt scale, so this sample isn't to scale. */}
             <KeyArrow lengthPx={keyLengthPx} light={true} />
-            local variation (estimates)
+            cove movement (est)
           </span>
         </div>
       ) : (
