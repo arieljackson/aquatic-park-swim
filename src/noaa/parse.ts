@@ -1,7 +1,8 @@
 // Raw NOAA JSON → domain types. Assumes responses were requested with time_zone=gmt.
 
 import type { CurrentEvent, CurrentSample, TideEvent, TideSample } from '../domain/types'
-import type { RawCurrentResponse, RawTideResponse } from './raw'
+import type { AirTempSample, WindSample } from '../weather/types'
+import type { RawAirTempResponse, RawCurrentResponse, RawTideResponse, RawWindResponse } from './raw'
 
 /** "2026-11-06 05:03" (GMT) → Date */
 export function parseGmt(s: string): Date {
@@ -67,4 +68,31 @@ export function parseCurrentDirections(raw: RawCurrentResponse): { floodDirDeg: 
   const first = raw.current_predictions.cp[0]
   if (!first) throw new Error('NOAA returned no current predictions')
   return { floodDirDeg: first.meanFloodDir, ebbDirDeg: first.meanEbbDir }
+}
+
+/** Measured air temperature. Missing readings ("") are skipped. */
+export function parseAirTemps(raw: RawAirTempResponse): AirTempSample[] {
+  const samples: AirTempSample[] = []
+  for (const reading of raw.data) {
+    if (reading.v === '') continue
+    samples.push({ time: parseGmt(reading.t), tempF: toNumber(reading.v, 'air temperature') })
+  }
+  return samples
+}
+
+/** Measured wind. Readings missing a speed or direction are skipped; a missing gust becomes null. */
+export function parseWinds(raw: RawWindResponse): WindSample[] {
+  const samples: WindSample[] = []
+  for (const reading of raw.data) {
+    if (reading.s === '' || reading.d === '') continue
+    let gustKt: number | null = null
+    if (reading.g !== '') gustKt = toNumber(reading.g, 'wind gust')
+    samples.push({
+      time: parseGmt(reading.t),
+      speedKt: toNumber(reading.s, 'wind speed'),
+      gustKt,
+      fromDeg: toNumber(reading.d, 'wind direction'),
+    })
+  }
+  return samples
 }

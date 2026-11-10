@@ -1,14 +1,17 @@
 // The only place that talks to NOAA. Everything returned from here is domain types.
 
 import type { PredictionData, StationInfo, TimeRange } from '../domain/types'
+import type { Weather } from '../weather/types'
 import {
+  parseAirTemps,
   parseCurrentDirections,
   parseCurrentEvents,
   parseCurrentSamples,
   parseTideEvents,
   parseTideSamples,
+  parseWinds,
 } from './parse'
-import type { RawCurrentResponse, RawErrorResponse, RawTideResponse } from './raw'
+import type { RawAirTempResponse, RawCurrentResponse, RawErrorResponse, RawTideResponse, RawWindResponse } from './raw'
 
 const API = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter'
 
@@ -84,5 +87,40 @@ export async function fetchPredictions(range: TimeRange, signal?: AbortSignal): 
       samples: parseCurrentSamples(currentCurve),
       events: parseCurrentEvents(currentEvents),
     },
+  }
+}
+
+/**
+ * Measured air temperature and wind at the Golden Gate station (9414290), hourly, for
+ * a time range. Only the past has measurements: the range is cut off at now, and a
+ * range with no measurements gives empty lists (NOAA answers those with an error).
+ */
+export async function fetchMeasuredWeather(range: TimeRange, signal?: AbortSignal): Promise<Weather> {
+  const now = new Date()
+  if (range.start >= now) return { airTemp: [], wind: [] }
+  let end = range.end
+  if (end > now) end = now
+  const pastRange = { start: range.start, end }
+
+  const measured = (product: string) => ({ product, station: TIDE_STATION.id, interval: 'h' })
+  const [airTemp, wind] = await Promise.all([
+    getJsonOrEmpty<RawAirTempResponse>(measured('air_temperature'), pastRange, { data: [] }, signal),
+    getJsonOrEmpty<RawWindResponse>(measured('wind'), pastRange, { data: [] }, signal),
+  ])
+  return { airTemp: parseAirTemps(airTemp), wind: parseWinds(wind) }
+}
+
+/** Like getJson, but NOAA's "No data was found" gives `empty` instead of an error. */
+async function getJsonOrEmpty<T>(
+  params: Record<string, string>,
+  range: TimeRange,
+  empty: T,
+  signal?: AbortSignal,
+): Promise<T> {
+  try {
+    return await getJson<T>(params, range, signal)
+  } catch (error) {
+    if (error instanceof NoaaError && error.message.includes('No data was found')) return empty
+    throw error
   }
 }

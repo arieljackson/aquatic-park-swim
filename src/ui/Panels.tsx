@@ -66,8 +66,17 @@ export function Panels({ conditions }: { conditions: Conditions }) {
           {tide.heightFt.toFixed(1)}
           <span className="panel__unit"> ft {tide.trend === 'rising' ? '▲' : '▼'}</span>
         </p>
+        {/* Same look as Next slack's second line: the event in bold; here its height too. */}
         <p className="panel__detail panel__line">
-          {nextTide === null ? '\u00a0' : `${nextTide.kind === 'high' ? 'High' : 'Low'} ${nextTide.heightFt.toFixed(1)} ft`}
+          {nextTide === null ? (
+            '\u00a0'
+          ) : (
+            <>
+              <span className="panel__event">{nextTide.kind === 'high' ? 'High' : 'Low'}</span>
+              {' · '}
+              <span className="panel__event">{nextTide.heightFt.toFixed(1)} ft</span>
+            </>
+          )}
         </p>
         <p className="panel__detail panel__line">
           {nextTide === null ? '\u00a0' : `${formatTime(nextTide.time)} ${formatRelativeDay(nextTide.time, at)}`}
@@ -100,7 +109,7 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
         </span>
       </p>
       <p className="panel__detail panel__line">
-        <span className="panel__slack-kind">{nextSlack.kind === 'high' ? 'High slack' : 'Low slack'}</span>
+        <span className="panel__event">{nextSlack.kind === 'high' ? 'High slack' : 'Low slack'}</span>
         {' · '}
         {formatRelativeDay(nextSlack.time, at)}
       </p>

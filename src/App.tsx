@@ -1,5 +1,5 @@
-// The page: header, map, the numbers, the day's chart with the
-// time slider, air and water temperature, caption. Everything follows one selected time.
+// The page: header, map, the numbers (current, speed, slack, tide; then air, water,
+// wind, water quality), the day's charts with the time slider, caption. Everything follows one selected time.
 //
 // One layout for every screen, mobile first: on a phone everything stacks; at 1024px
 // and wider, app.css arranges the same pieces in two columns (see .layout).
@@ -14,8 +14,10 @@ import { conditionsAt } from './domain/conditions'
 import type { Conditions, PredictionData } from './domain/types'
 import { formatDay } from './time/format'
 import { useSelectedTime } from './time/useSelectedTime'
+import { useWeather } from './weather/useWeather'
 import type { SelectedTime } from './time/useSelectedTime'
 import { CurrentChart, TideChart } from './ui/charts/DayChart'
+import { WindChart, WindKey } from './ui/charts/WindChart'
 import { useElementWidth } from './ui/charts/useElementWidth'
 import { dayAxis } from './ui/dayAxis'
 import { DebugTables } from './ui/DebugTables'
@@ -24,6 +26,7 @@ import { CurrentMap } from './ui/map/CurrentMap'
 import { Panels } from './ui/Panels'
 import { TimeSlider } from './ui/TimeSlider'
 import { useIsWide } from './ui/useIsWide'
+import { WeatherTiles } from './ui/WeatherTiles'
 import './app.css'
 
 /** The debug tables (Golden Gate vs. Aquatic Park) show only with ?debug in the URL. */
@@ -58,6 +61,11 @@ function App() {
             <Panels conditions={conditions} />
           </div>
         )}
+        {/* Right after the top tiles on a phone, so all the numbers come before the charts.
+            (On a laptop it sits under the map: the grid places it by name.) */}
+        <div className="layout__temps">
+          <WeatherTiles time={selected.time} />
+        </div>
         {aquaticPark !== null && (
           <div className="layout__day">
             <DaySection
@@ -70,17 +78,6 @@ function App() {
             />
           </div>
         )}
-        {/* No air or water temperature source yet: the boxes stay empty for now. */}
-        <div className="layout__temps temps">
-          <section className="temp">
-            <h2 className="label">Air temp</h2>
-            <p className="temp__value mono">--°F</p>
-          </section>
-          <section className="temp">
-            <h2 className="label">Water temp</h2>
-            <p className="temp__value mono">--°F</p>
-          </section>
-        </div>
         <div className="layout__caption caption">
           <p>
             Calculations for Aquatic Cove roughly estimated by: current occurs 25 min before Golden Gate at half
@@ -92,12 +89,17 @@ function App() {
           </p>
           <p>
             Data: tide and current predictions from{' '}
-            <a href="https://tidesandcurrents.noaa.gov/">NOAA</a> (stations 9414290 and SFB1203). Correction rule
-            from the Dolphin Club’s{' '}
-            <a href="https://web.archive.org/web/20250508021732/https://dolphinclub.org/wp-content/uploads/2015/03/DolphinClub_TidesAndCurrents_Guide.pdf">
-              “Tides, Currents and Row Planning”
-            </a>
-            . Map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+            <a href="https://tidesandcurrents.noaa.gov/">NOAA</a> (stations 9414290 and SFB1203). Corrections
+            estimated from Tidal/Current Differences from Golden Gate (see above). Water temperature: estimated by NOAA’s{' '}
+            <a href="https://tidesandcurrents.noaa.gov/ofs/sfbofs/sfbofs.html">San Francisco Bay model (SFBOFS)</a> at
+            North Point, Pier 41; not a measurement. Air temperature and wind: measured at NOAA’s Golden
+            Gate station (9414290) for past times, forecast by the{' '}
+            <a href="https://www.weather.gov/mtr/">National Weather Service</a> for later ones.
+            Water quality: SFPUC’s weekly bacteria samples at Aquatic Park (station 211), from{' '}
+            <a href="https://data.sf.gov/d/v3fv-x3ux">DataSF</a>, compared with California’s
+            single-sample beach limits; results are published about a week after sampling and
+            don’t include advisories. Map ©{' '}
+            <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
           </p>
         </div>
       </div>
@@ -117,13 +119,15 @@ type DaySectionProps = {
 }
 
 /**
- * The day's tiles: the time slider (laptop only), then the tide and current charts. They
+ * The day's tiles: the time slider (laptop only), then the tide, current and wind charts. They
  * share one width and one day axis, so their times line up.
  */
 function DaySection({ data, conditions, time, onSelect, includeSlider, selected }: DaySectionProps) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const axis = dayAxis(time, width)
   const chartProps = { data, conditions, axis, width, onSelect }
+  // Loaded and cached once (see useWeather), so the weather tiles share this data.
+  const weather = useWeather(time)
   return (
     <section className="day">
       <h2 className="label">{formatDay(time)} · Pacific Time</h2>
@@ -136,6 +140,11 @@ function DaySection({ data, conditions, time, onSelect, includeSlider, selected 
       <div className="tile">
         <h3 className="label">Current</h3>
         {width > 0 && <CurrentChart {...chartProps} />}
+      </div>
+      <div className="tile">
+        <h3 className="label">Wind</h3>
+        {width > 0 && <WindChart weather={weather} axis={axis} width={width} time={time} onSelect={onSelect} />}
+        <WindKey />
       </div>
     </section>
   )

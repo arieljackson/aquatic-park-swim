@@ -13,16 +13,24 @@
 // We use its point at North Point, Pier 41 (NOAA 9414305), about 0.85 km from the cove,
 // and its top water layer (the surface, where people swim).
 //
+// So for any stretch of time, past hours come from the nowcasts of the runs that cover
+// them, and hours after the newest run come from that run's forecast. NOAA keeps about
+// a month of runs online; older hours, and hours more than 48 hours past the newest
+// run, simply aren't in the answer.
+//
 // NOAA serves the model files over OPeNDAP, which can return a slice of a file as text
 // instead of the whole file (tens of MB). We ask for just one point, one layer, hourly.
 //
+// Request:
+//   /api/water-temp?from=2026-11-08T08:00:00Z&to=2026-11-09T08:00:00Z   (at most 3 days apart)
+//   /api/water-temp      (no from/to: what the newest run covers, 6 hours back to 48 ahead)
 // Response:
 //   {
 //     "source": "NOAA SFBOFS model, North Point, Pier 41 (9414305), surface",
-//     "run": "2026-11-10T15:00:00.000Z",
+//     "run": "2026-11-10T15:00:00.000Z",          (the newest run)
 //     "samples": [{ "time": "2026-11-10T09:00:00.000Z", "tempF": 62.4, "kind": "nowcast" }, ...]
 //   }
-// Errors: status 502 with { "error": "..." }.
+// Errors: status 400 (bad from/to) or 502 (NOAA failed), with { "error": "..." }.
 
 const OPENDAP_BASE = 'https://opendap.co-ops.nos.noaa.gov/thredds/dodsC/NOAA/SFBOFS/MODELS'
 
@@ -40,44 +48,115 @@ const MODEL_RUN_HOURS_UTC = [3, 9, 15, 21]
 /** The model's times are seconds since this moment (UTC). */
 const MODEL_EPOCH_MS = Date.UTC(2013, 0, 1)
 
+const HOUR_MS = 60 * 60 * 1000
+
+/** Each run's nowcast covers this many hours before it; its forecast this many after. */
+const NOWCAST_HOURS = 6
+const FORECAST_HOURS = 48
+
+/** The longest stretch one request may ask for. */
+const MAX_WINDOW_MS = 3 * 24 * HOUR_MS
+
 /**
- * How long Vercel's servers may reuse a response before asking NOAA again: an hour,
- * and for up to 6 hours after that they may serve the old one while fetching a new one.
- * The model only changes every 6 hours, so this keeps requests to NOAA to a handful a day.
+ * How long Vercel's servers may reuse a response before asking NOAA again.
+ * - Anything reaching past the newest run changes when the next run comes out (every
+ *   6 hours): reuse for an hour, and for up to 6 more hours while fetching a new one.
+ * - A stretch entirely before the newest run won't change: reuse for a week.
  */
-const CACHE_HEADER = 'public, s-maxage=3600, stale-while-revalidate=21600'
+const CACHE_RECENT = 'public, s-maxage=3600, stale-while-revalidate=21600'
+const CACHE_PAST = 'public, s-maxage=604800'
 
 type Sample = { time: string; tempF: number; kind: 'nowcast' | 'forecast' }
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   try {
-    const run = await findLatestRun()
-    if (run === null) {
+    const latest = await findLatestRun()
+    if (latest === null) {
       return jsonResponse(502, { error: 'No recent SFBOFS model run found' })
     }
-    const stationIndex = await findStationIndex(run.forecastUrl)
-    const nowcast = await readTemperatures(run.nowcastUrl, stationIndex, 'nowcast')
-    const forecast = await readTemperatures(run.forecastUrl, stationIndex, 'forecast')
-    // Both files include the run time itself (the nowcast's last value, the forecast's
-    // first). Keep the nowcast's, and only forecast values after it.
-    const runTimeIso = run.time.toISOString()
-    const forecastAfterRun = forecast.filter((sample) => sample.time > runTimeIso)
-    return jsonResponse(200, {
-      source: 'NOAA SFBOFS model, North Point, Pier 41 (9414305), surface',
-      run: runTimeIso,
-      samples: [...nowcast, ...forecastAfterRun],
-    })
+    const latestMs = latest.time.getTime()
+
+    // The stretch of time to cover. Default: what the newest run covers.
+    let fromMs = latestMs - NOWCAST_HOURS * HOUR_MS
+    let toMs = latestMs + FORECAST_HOURS * HOUR_MS
+    const params = new URL(request.url).searchParams
+    const fromParam = params.get('from')
+    const toParam = params.get('to')
+    if (fromParam !== null || toParam !== null) {
+      fromMs = Date.parse(fromParam ?? '')
+      toMs = Date.parse(toParam ?? '')
+      const valid = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs > fromMs && toMs - fromMs <= MAX_WINDOW_MS
+      if (!valid) {
+        return jsonResponse(400, { error: 'from and to must both be times, from before to, at most 3 days apart' })
+      }
+    }
+
+    const stationIndex = await findStationIndex(latest.forecastUrl)
+
+    // Hours up to the newest run: the nowcasts of the runs covering them. An old run
+    // that's no longer online just leaves a gap, rather than failing the whole answer.
+    const reads: Array<Promise<Sample[]>> = []
+    for (const runTime of runsCovering(fromMs, Math.min(toMs, latestMs))) {
+      const nowcastUrl = modelRunUrls(runTime).nowcastUrl
+      reads.push(readTemperatures(nowcastUrl, stationIndex, 'nowcast').catch(() => []))
+    }
+    // Hours after the newest run: its forecast.
+    if (toMs > latestMs) {
+      reads.push(readTemperatures(latest.forecastUrl, stationIndex, 'forecast'))
+    }
+    const lists = await Promise.all(reads)
+
+    // Keep the hours inside the stretch, one value per hour. Neighboring files share an
+    // hour (a nowcast ends at its run time, where the next file starts); the lists are in
+    // time order with nowcasts first, so the first value seen for an hour is kept.
+    const byTime = new Map<string, Sample>()
+    for (const list of lists) {
+      for (const sample of list) {
+        const ms = Date.parse(sample.time)
+        if (ms < fromMs || ms > toMs) continue
+        if (!byTime.has(sample.time)) byTime.set(sample.time, sample)
+      }
+    }
+    const samples = [...byTime.values()].sort((a, b) => Date.parse(a.time) - Date.parse(b.time))
+
+    let cacheHeader = CACHE_RECENT
+    if (toMs <= latestMs) cacheHeader = CACHE_PAST
+    return jsonResponse(
+      200,
+      { source: 'NOAA SFBOFS model, North Point, Pier 41 (9414305), surface', run: latest.time.toISOString(), samples },
+      cacheHeader,
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return jsonResponse(502, { error: message })
   }
 }
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(status: number, body: unknown, cacheHeader?: string): Response {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  // Cache only good answers, so an error doesn't stick around for an hour.
-  if (status === 200) headers['Cache-Control'] = CACHE_HEADER
+  // Cache only good answers, so an error doesn't stick around.
+  if (status === 200 && cacheHeader !== undefined) headers['Cache-Control'] = cacheHeader
   return new Response(JSON.stringify(body), { status, headers })
+}
+
+/**
+ * The run times whose nowcasts cover some of [fromMs, untilMs]: every run after `fromMs`,
+ * up to the first one at or after `untilMs`. A run at time R covers (R − 6 h, R].
+ *
+ * Runs are at 03, 09, 15 and 21 UTC: 3 hours past a multiple of 6 hours. The first run
+ * after `fromMs`:
+ *   R = 3 h + (whole number of 6 h steps from 3 h up to fromMs, plus one) × 6 h
+ */
+function runsCovering(fromMs: number, untilMs: number): Date[] {
+  const step = NOWCAST_HOURS * HOUR_MS
+  const offset = 3 * HOUR_MS
+  let runMs = offset + (Math.floor((fromMs - offset) / step) + 1) * step
+  const runs: Date[] = []
+  while (runMs - step < untilMs) {
+    runs.push(new Date(runMs))
+    runMs += step
+  }
+  return runs
 }
 
 // ------------------------------------------------------------------ Finding the files

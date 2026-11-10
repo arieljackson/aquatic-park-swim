@@ -27,5 +27,18 @@ export type RawCurrentResponse = {
   }
 }
 
+/** `product=air_temperature`: measured at the station. `v` is "" when a reading is missing. */
+export type RawAirTempResponse = {
+  data: Array<{ t: string; v: string }>
+}
+
+/**
+ * `product=wind`: measured at the station. Speed `s` and gust `g` in knots (units=english),
+ * direction `d` in degrees the wind comes from. Any of them can be "" when missing.
+ */
+export type RawWindResponse = {
+  data: Array<{ t: string; s: string; d: string; dr: string; g: string }>
+}
+
 /** NOAA reports errors with HTTP 200 and this body. */
 export type RawErrorResponse = { error: { message: string } }

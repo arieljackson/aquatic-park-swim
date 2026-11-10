@@ -1,4 +1,5 @@
-// The tide chart and the current chart for the selected day. Each is its own tile,
+// The tide chart and the current chart for the selected day (the wind chart is in
+// WindChart.tsx and uses the shared pieces at the bottom of this file). Each is its own tile,
 // but they share one time axis (dayAxis.ts) with the slider, so times line up.
 //
 // Each chart has:
@@ -15,11 +16,11 @@ import { linearScale, ticksBetween } from './scale'
 import './chart.css'
 
 /** Kept clear above the curve so event labels fit. */
-const TOP_SPACE = 20
+export const TOP_SPACE = 20
 /** Kept clear below the curve so event labels fit. */
 const BOTTOM_SPACE = 18
 /** Under the plot, for the hour labels. */
-const X_AXIS_HEIGHT = 22
+export const X_AXIS_HEIGHT = 22
 /** The current's dashed lines: the "strong" threshold. */
 const STRONG_KT = 1
 
@@ -213,7 +214,7 @@ type FrameProps = {
 }
 
 /** The chart's SVG, which turns taps and drags into a selected time. */
-function ChartFrame({ axis, width, height, label, onSelect, children }: FrameProps) {
+export function ChartFrame({ axis, width, height, label, onSelect, children }: FrameProps) {
   // Tap, or press and drag. Pointer capture keeps the drag going outside the chart.
   const pick = (event: PointerEvent<SVGSVGElement>) => {
     const box = event.currentTarget.getBoundingClientRect()
@@ -243,7 +244,7 @@ function ChartFrame({ axis, width, height, label, onSelect, children }: FramePro
 }
 
 /** Vertical gridlines every 6 hours, and the hour labels under the plot. */
-function HourAxis({ axis, plotTop, plotBottom }: { axis: DayAxis; plotTop: number; plotBottom: number }) {
+export function HourAxis({ axis, plotTop, plotBottom }: { axis: DayAxis; plotTop: number; plotBottom: number }) {
   const labeled = axis.hourTicks.filter((tick) => tick.label !== null)
   return (
     <g>
@@ -266,7 +267,7 @@ function HourAxis({ axis, plotTop, plotBottom }: { axis: DayAxis; plotTop: numbe
   )
 }
 
-function NowMarker({ x, y, top, bottom }: { x: number; y: number; top: number; bottom: number }) {
+export function NowMarker({ x, y, top, bottom }: { x: number; y: number; top: number; bottom: number }) {
   return (
     <g className="chart__now">
       <line x1={x} y1={top - 6} x2={x} y2={bottom} />

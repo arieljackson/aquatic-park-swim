@@ -99,7 +99,7 @@ function lastAtOrBefore<T extends Timed>(items: T[], t: number): number {
  *
  * Returns null if `t` is outside the samples.
  */
-function interpolate<T extends Timed>(samples: T[], t: number, valueOf: (sample: T) => number): number | null {
+export function interpolate<T extends Timed>(samples: T[], t: number, valueOf: (sample: T) => number): number | null {
   const beforeIndex = lastAtOrBefore(samples, t)
   if (beforeIndex === -1) return null
 

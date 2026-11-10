@@ -65,7 +65,8 @@
 }
 
 
-.panel__slack-kind {
+/* The event a small line is about ("High slack", "High"), in bold. */
+.panel__event {
   font-weight: 600;
   color: var(--text);
 }
