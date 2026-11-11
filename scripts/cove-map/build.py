@@ -28,12 +28,15 @@ CENTER_LAT, CENTER_LON = 37.8093, -122.4241
 WIDTH, HEIGHT = 1600, 720  # SVG units
 SCALE = 115066.7  # SVG units per degree of latitude (about 1 unit per meter)
 
-# Rotation. NOAA's Golden Gate station (SFB1203) gives a mean flood direction of 69°
-# and a mean ebb direction of 257°. Their shared axis is the average of the flood
-# direction and the ebb direction turned around:
+# Rotation, from the main channel's flood/ebb axis at NOAA's Golden Gate station
+# (SFB1203): mean flood direction 69°, mean ebb direction 257°. The shared axis is the
+# average of the flood direction and the ebb direction turned around:
 #   axis = (69 + (257 - 180)) / 2 = 73°   (compass degrees, clockwise from north)
 # Turning the map clockwise by 90 - 73 = 17° makes that axis horizontal, so flood
 # arrows point right and ebb arrows point left. North is then 17° clockwise from up.
+# The app's current station, Alcatraz SW (SFB1204: flood 86°, ebb 271°), has an axis
+# of (86 + 91) / 2 = 88.5°, about 15° off horizontal on this map; the arrows are drawn
+# left/right regardless.
 ROTATION_DEG = 17
 
 LON_FACTOR = math.cos(math.radians(CENTER_LAT))

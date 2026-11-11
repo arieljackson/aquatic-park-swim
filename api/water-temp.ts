@@ -101,9 +101,14 @@ export async function GET(request: Request): Promise<Response> {
     // Hours up to the newest run: the nowcasts of the runs covering them. An old run
     // that's no longer online just leaves a gap, rather than failing the whole answer.
     const reads: Array<Promise<Sample[]>> = []
+    let someReadFailed = false
     for (const runTime of runsCovering(fromMs, Math.min(toMs, latestMs))) {
       const nowcastUrl = modelRunUrls(runTime).nowcastUrl
-      reads.push(readTemperatures(nowcastUrl, stationIndex, 'nowcast').catch(() => []))
+      const read = readTemperatures(nowcastUrl, stationIndex, 'nowcast').catch(() => {
+        someReadFailed = true
+        return []
+      })
+      reads.push(read)
     }
     // Hours after the newest run: its forecast.
     if (toMs > latestMs) {
@@ -124,8 +129,10 @@ export async function GET(request: Request): Promise<Response> {
     }
     const samples = [...byTime.values()].sort((a, b) => Date.parse(a.time) - Date.parse(b.time))
 
+    // A finished day is cached for long, unless a read failed: then its gap may be a
+    // passing NOAA error, so it gets the short cache and is asked for again soon.
     let cacheHeader = CACHE_RECENT
-    if (toMs <= latestMs) cacheHeader = CACHE_PAST
+    if (toMs <= latestMs && !someReadFailed) cacheHeader = CACHE_PAST
     return jsonResponse(
       200,
       { source: 'NOAA SFBOFS model, North Point, Pier 41 (9414305), surface', run: latest.time.toISOString(), samples },

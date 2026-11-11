@@ -4,13 +4,13 @@
 // For any time, we use the measurement if there is one, otherwise the forecast.
 //
 // Measurements are loaded for the selected day ±1 day and cached, like the tide and
-// current predictions. Today's are refreshed every hour, since new readings keep
-// arriving. The forecast is loaded once per visit.
+// current predictions. Today's are reloaded once an hour (Pacific), even if the page
+// just sits open, since new readings keep arriving. The forecast is loaded once per visit.
 
 import { useEffect, useState } from 'react'
 import { interpolate } from '../domain/conditions'
 import { fetchMeasuredWeather } from '../noaa/client'
-import { addPacificDays, pacificDateString, startOfPacificDay } from '../time/pacific'
+import { addPacificDays, pacificDateString, startOfPacificDay, toPacific } from '../time/pacific'
 import { fetchForecastWeather } from './nws'
 import type { AirTempSample, Weather, WindSample } from '../domain/types'
 
@@ -26,14 +26,20 @@ export type WeatherSource = 'measured' | 'forecast'
 
 const measuredCache = new Map<string, Promise<Weather>>()
 
-function loadMeasured(time: Date): Promise<Weather> {
-  const day = pacificDateString(time)
-  let key = day
-  // Today's measurements grow during the day: make the key change every hour, so a
-  // fresh copy is loaded at most once an hour.
-  const now = new Date()
-  if (day === pacificDateString(now)) key = `${day} ${now.getHours()}h`
+/** How often the hook checks whether a new hour has started. */
+const CLOCK_TICK_MS = 5 * MINUTE
 
+/**
+ * The cache key for a day's measurements: "2026-11-10" for a past or future day, and
+ * "2026-11-10 14h" for today, so today's key changes every Pacific hour.
+ */
+function measuredKey(time: Date, now: Date): string {
+  const day = pacificDateString(time)
+  if (day !== pacificDateString(now)) return day
+  return `${day} ${toPacific(now).hour}h`
+}
+
+function loadMeasured(time: Date, key: string): Promise<Weather> {
   const cached = measuredCache.get(key)
   if (cached) return cached
   const dayStart = startOfPacificDay(time)
@@ -66,9 +72,18 @@ export function useWeather(time: Date): WeatherData {
   const [measured, setMeasured] = useState<{ day: string; weather: Weather | null } | null>(null)
   const [forecast, setForecast] = useState<Weather | null>(null)
 
+  // The clock, updated every few minutes, so today's key moves on to the next hour even
+  // when nothing else on the page changes.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), CLOCK_TICK_MS)
+    return () => clearInterval(timer)
+  }, [])
+  const key = measuredKey(time, now)
+
   useEffect(() => {
     let ignore = false
-    loadMeasured(time).then(
+    loadMeasured(time, key).then(
       (weather) => {
         if (!ignore) setMeasured({ day, weather })
       },
@@ -79,9 +94,10 @@ export function useWeather(time: Date): WeatherData {
     return () => {
       ignore = true
     }
-    // Only reload when the day changes, like the predictions.
+    // Reload when the key changes: a new day, or a new hour for today. Not on every
+    // minute or hour step within a past or future day.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day])
+  }, [key])
 
   useEffect(() => {
     let ignore = false

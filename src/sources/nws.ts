@@ -6,6 +6,7 @@
 // returns. Free, no key, and it allows browser requests.
 
 import type { Weather, WindSample } from '../domain/types'
+import { compassPointToDegrees, mphToKnots } from '../domain/units'
 
 const HOURLY_FORECAST_URL = 'https://api.weather.gov/gridpoints/MTR/85,107/forecast/hourly'
 
@@ -19,12 +20,6 @@ type RawPeriod = {
 }
 
 type RawForecast = { properties: { periods: RawPeriod[] } }
-
-/** 1 mph = 0.868976 knots */
-const KNOTS_PER_MPH = 0.868976
-
-/** Compass points in order, clockwise from north, 22.5° apart. */
-const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
 
 export async function fetchForecastWeather(signal?: AbortSignal): Promise<Weather> {
   const response = await fetch(HOURLY_FORECAST_URL, { signal })
@@ -46,10 +41,7 @@ export async function fetchForecastWeather(signal?: AbortSignal): Promise<Weathe
 /** "7 mph" and "WNW" → knots and degrees. Null if either isn't in the expected form. */
 function parseWind(time: Date, speedText: string, directionText: string): WindSample | null {
   const match = /^(\d+) mph$/.exec(speedText)
-  // Compass point → degrees:  degrees = position in the list × 22.5  (N = 0, E = 90, W = 270)
-  const compassIndex = COMPASS_POINTS.indexOf(directionText)
-  if (match === null || compassIndex === -1) return null
-  // mph → knots:  knots = mph × 0.868976
-  const speedKt = Number(match[1]) * KNOTS_PER_MPH
-  return { time, speedKt, gustKt: null, fromDeg: compassIndex * 22.5 }
+  const fromDeg = compassPointToDegrees(directionText)
+  if (match === null || fromDeg === null) return null
+  return { time, speedKt: mphToKnots(Number(match[1])), gustKt: null, fromDeg }
 }

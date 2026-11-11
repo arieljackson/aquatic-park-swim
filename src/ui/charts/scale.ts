@@ -23,14 +23,6 @@ export function linearScale(domainMin: number, domainMax: number, rangeMin: numb
   return { toPixel, invert }
 }
 
-/**
- * Axis bounds that are whole multiples of `step` and contain [min, max].
- * Example: min −0.4, max 6.1, step 2 → { low: −2, high: 8 }
- */
-export function roundedBounds(min: number, max: number, step: number): { low: number; high: number } {
-  return { low: Math.floor(min / step) * step, high: Math.ceil(max / step) * step }
-}
-
 /** Every multiple of `step` from low to high, e.g. (−2, 8, 2) → [−2, 0, 2, 4, 6, 8]. */
 export function ticksBetween(low: number, high: number, step: number): number[] {
   const ticks: number[] = []
@@ -39,9 +31,4 @@ export function ticksBetween(low: number, high: number, step: number): number[] 
     ticks.push(low + i * step)
   }
   return ticks
-}
-
-/** Keep a value inside [min, max]. */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
 }
