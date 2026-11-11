@@ -1,25 +1,25 @@
 // Loads NOAA predictions for the San Francisco day containing the selected time.
 //
 // For a given day we fetch three days: the day before, the day itself and the day
-// after. That way the full day's curve is available (for the chart in M3), and the
+// after. That way the full day's curve is available for the charts, and the
 // previous/next high, low and slack are found even near midnight.
 //
 // Results are cached by day, so stepping hours within a day makes no requests, and
 // going back to a day you've already seen is instant.
 //
-// NOAA's Golden Gate data is corrected for Aquatic Park here (see
-// domain/corrections.ts). Both versions are returned so the debug view can show
-// them side by side.
+// The tide is moved from the Golden Gate to North Point, Pier 41 here (see
+// domain/pier41Tide.ts). Both versions are returned so the debug view can show them
+// side by side.
 
 import { useEffect, useState } from 'react'
-import { correctForAquaticPark } from '../domain/corrections'
+import { pier41Tide } from '../domain/pier41Tide'
 import type { PredictionData } from '../domain/types'
 import { fetchPredictions } from '../noaa/client'
 import { addPacificDays, pacificDateString, startOfPacificDay } from '../time/pacific'
 
 export type DayData = {
-  goldenGate: PredictionData // as NOAA predicts it for the Golden Gate
-  aquaticPark: PredictionData // corrected: what the app shows
+  noaa: PredictionData // as fetched: Golden Gate tide, Alcatraz SW current
+  shown: PredictionData // what the app shows: Pier 41 tide, the same current
 }
 
 const cache = new Map<string, Promise<DayData>>()
@@ -31,9 +31,9 @@ function loadDay(day: Date): Promise<DayData> {
 
   const dayStart = startOfPacificDay(day)
   const range = { start: addPacificDays(dayStart, -1), end: addPacificDays(dayStart, 2) }
-  const request = fetchPredictions(range).then((goldenGate) => ({
-    goldenGate,
-    aquaticPark: correctForAquaticPark(goldenGate),
+  const request = fetchPredictions(range).then((noaa) => ({
+    noaa,
+    shown: { ...noaa, tide: pier41Tide(noaa.tide) },
   }))
   // Don't keep failures in the cache, so the next attempt tries again.
   request.catch(() => cache.delete(key))

@@ -4,7 +4,6 @@ import type { PredictionData, StationInfo, TimeRange } from '../domain/types'
 import type { Weather } from '../domain/types'
 import {
   parseAirTemps,
-  parseCurrentDirections,
   parseCurrentEvents,
   parseCurrentSamples,
   parseTideEvents,
@@ -16,7 +15,10 @@ import type { RawAirTempResponse, RawCurrentResponse, RawErrorResponse, RawTideR
 const API = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter'
 
 export const TIDE_STATION: StationInfo = { id: '9414290', name: 'San Francisco (Golden Gate)' }
-export const CURRENT_STATION: StationInfo = { id: 'SFB1203', name: 'Golden Gate Bridge, 0.46 nm E' }
+// The nearest current station to the cove, about 1.1 km out, in open water. Its
+// shallowest reading (bin 18, 2 ft below the surface) is the depth swimmers are in.
+export const CURRENT_STATION: StationInfo = { id: 'SFB1204', name: 'Alcatraz Island, southwest of (2 ft)' }
+const CURRENT_BIN = '18'
 
 export class NoaaError extends Error {
   name = 'NoaaError'
@@ -61,7 +63,8 @@ const tide = (interval: string) => ({
 
 const current = (interval: string) => ({
   product: 'currents_predictions',
-  station: CURRENT_STATION.id, // default bin (18, ~30 ft) — the one NOAA's tables use
+  station: CURRENT_STATION.id,
+  bin: CURRENT_BIN,
   interval,
 })
 
@@ -83,7 +86,6 @@ export async function fetchPredictions(range: TimeRange, signal?: AbortSignal): 
     },
     current: {
       station: CURRENT_STATION,
-      ...parseCurrentDirections(currentCurve),
       samples: parseCurrentSamples(currentCurve),
       events: parseCurrentEvents(currentEvents),
     },

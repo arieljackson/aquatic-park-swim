@@ -5,7 +5,7 @@
 // right (into the bay), ebb arrows point left (out the Golden Gate).
 //
 // Arrow positions come from scripts/cove-map/arrows.py (arrowLayout.ts), which checks
-// that every arrow stays over water. Open water: straight arrows, length ∝ speed.
+// that every arrow stays over water.
 // Two kinds of arrows:
 // - Solid straight arrows, in open water and (thinner) in the cove: the data. They point
 //   east on a flood and west on an ebb, and their length ∝ speed (1 kt key).
@@ -154,7 +154,6 @@ export function CurrentMap({ phase, speedKt }: Props) {
         )}
       </svg>
 
-      <p className="map__tag mono">AQUATIC COVE</p>
       {/* OpenStreetMap's license asks for this credit wherever the map is shown. */}
       <p className="map__credit">© OpenStreetMap contributors</p>
       <NorthArrow />

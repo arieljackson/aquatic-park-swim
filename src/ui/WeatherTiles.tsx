@@ -4,7 +4,8 @@
 // (measured, forecast, model estimate). The caption names the sources and places.
 //
 // Sized for a 375px-wide phone, where each tile has about 133px for text: the longest
-// value is "25 mph WSW" (unit and direction drawn small), the longest small line "Gusts 25 · measured".
+// value is "25 mph WSW" (unit and direction drawn small), the longest small line "Gusts 25 mph".
+// Only measurements have gusts (the forecast has none), so a gust line means "measured".
 // Water quality says "Meets standards" (green) or "Fails standards" (red): the same
 // length, so the tile looks the same either way.
 
@@ -42,10 +43,10 @@ export function WeatherTiles({ time }: { time: Date }) {
     windSpeed = String(Math.round(knotsToMph(wind.speedKt)))
     windDirection = compassPoint(wind.fromDeg)
     if (windNow.source === 'measured') {
-      if (wind.gustKt !== null) windDetail = `Gusts ${Math.round(knotsToMph(wind.gustKt))} · measured`
+      if (wind.gustKt !== null) windDetail = `Gusts ${Math.round(knotsToMph(wind.gustKt))} mph`
       else windDetail = 'Measured'
     } else {
-      windDetail = 'Forecast' // the hourly forecast has no gusts
+      windDetail = 'Forecast'
     }
   } else if (weather.measured === null && weather.forecast === null) {
     windDetail = 'Loading…'

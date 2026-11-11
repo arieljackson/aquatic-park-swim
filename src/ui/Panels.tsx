@@ -1,16 +1,14 @@
 // The grid of numbers under the map: current (state), speed, next slack and tide.
 
-import type { Conditions, CurrentState } from '../domain/types'
+import type { Conditions, CurrentPhase } from '../domain/types'
 import { formatCountdown, formatRelativeDay, formatTime, formatTimeParts } from '../time/format'
 import { StateGlyph } from './StateGlyph'
 import './panels.css'
 
-const STATE_WORDS: Record<CurrentState, [string, string]> = {
-  strongFlood: ['Strong', 'flood'],
-  weakFlood: ['Weak', 'flood'],
-  slack: ['Slack', ''],
-  weakEbb: ['Weak', 'ebb'],
-  strongEbb: ['Strong', 'ebb'],
+const PHASE_WORDS: Record<CurrentPhase, string> = {
+  flood: 'Flood',
+  slack: 'Slack',
+  ebb: 'Ebb',
 }
 
 // Wording, the same in every tile: sentence case ("Max 1.4 kt", "High 5.8 ft"); a time
@@ -23,7 +21,6 @@ const STATE_WORDS: Record<CurrentState, [string, string]> = {
 export function Panels({ conditions }: { conditions: Conditions | null }) {
   if (conditions === null) return <LoadingPanels />
   const { at, current, tide } = conditions
-  const [firstWord, secondWord] = STATE_WORDS[current.state]
   const nextTide = tide.next
 
   return (
@@ -35,9 +32,10 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
         <div className="panel__glyph">
           <StateGlyph phase={current.phase} size={30} />
         </div>
-        {/* Always two lines; slack leaves the second one empty. */}
-        <p className="panel__state-words panel__line">{firstWord}</p>
-        <p className="panel__state-words panel__line">{secondWord === '' ? '\u00a0' : secondWord}</p>
+        {/* Two lines, the second one empty, so this tile stays the same height as the
+            others. */}
+        <p className="panel__state-words panel__line">{PHASE_WORDS[current.phase]}</p>
+        <p className="panel__state-words panel__line">{'\u00a0'}</p>
       </section>
 
       <section className="panel">
@@ -106,7 +104,7 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
         <span className="panel__unit mono"> {time.period}</span>
         {/* In slack now: the slack shown is the one we're in, so no countdown. */}
         <span className="panel__countdown mono">
-          {conditions.current.state === 'slack' ? ' now' : ` in ${formatCountdown(at, nextSlack.time)}`}
+          {conditions.current.phase === 'slack' ? ' now' : ` in ${formatCountdown(at, nextSlack.time)}`}
         </span>
       </p>
       <p className="panel__detail panel__line">

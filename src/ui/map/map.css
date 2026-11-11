@@ -72,7 +72,6 @@
 }
 
 /* Boxes floating over the map. */
-.map__tag,
 .map__key,
 .map__north {
   position: absolute;
@@ -80,15 +79,6 @@
   background: rgba(13, 19, 23, 0.85);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
-}
-
-.map__tag {
-  left: 12px;
-  top: 12px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
 }
 
 .map__key {

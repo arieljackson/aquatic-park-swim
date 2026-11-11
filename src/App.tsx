@@ -35,14 +35,14 @@ import { useIsWide } from './ui/useIsWide'
 import { WeatherTiles } from './ui/WeatherTiles'
 import './app.css'
 
-/** The debug tables (Golden Gate vs. Aquatic Park) show only with ?debug in the URL. */
+/** The debug table (tide, Golden Gate vs. Pier 41) shows only with ?debug in the URL. */
 const showDebug = new URLSearchParams(window.location.search).has('debug')
 
 function App() {
   const selected = useSelectedTime()
   const { data, error } = usePredictions(selected.time)
-  const aquaticPark = data === null ? null : data.aquaticPark
-  const conditions = aquaticPark === null ? null : conditionsAt(selected.time, aquaticPark)
+  const shown = data === null ? null : data.shown
+  const conditions = shown === null ? null : conditionsAt(selected.time, shown)
   const isWide = useIsWide()
 
   return (
@@ -61,7 +61,7 @@ function App() {
         </div>
         {!isWide && (
           <div className="layout__slider">
-            <TimeTile currentEvents={aquaticPark === null ? [] : aquaticPark.current.events} selected={selected} />
+            <TimeTile currentEvents={shown === null ? [] : shown.current.events} selected={selected} />
           </div>
         )}
         <div className="layout__panels">
@@ -74,7 +74,7 @@ function App() {
         </div>
         <div className="layout__day">
           <DaySection
-            data={aquaticPark}
+            data={shown}
             conditions={conditions}
             time={selected.time}
             onSelect={selected.setTime}
@@ -84,17 +84,9 @@ function App() {
         </div>
         <div className="layout__caption caption">
           <p>
-            Calculations for Aquatic Cove roughly estimated by: current occurs 25 min before Golden Gate at half
-            speed, tide occurs 15 min later than Golden Gate.
-          </p>
-          <p>
-            Values are estimated from NOAA predictions, and map data is not exact. Real conditions vary, and you
-            should always use your own judgment while swimming.
-          </p>
-          <p>
             Data: tide and current predictions from{' '}
-            <a href="https://tidesandcurrents.noaa.gov/">NOAA</a> (stations 9414290 and SFB1203). Corrections
-            estimated from Tidal/Current Differences from Golden Gate (see above). Water temperature: estimated by NOAA’s{' '}
+            <a href="https://tidesandcurrents.noaa.gov/">NOAA</a> (stations 9414290 and SFB1204). Tide: Golden Gate with
+            NOAA offset to North Point, Pier 41. Current: Alcatraz SW. Water temperature: estimated by NOAA’s{' '}
             <a href="https://tidesandcurrents.noaa.gov/ofs/sfbofs/sfbofs.html">San Francisco Bay model (SFBOFS)</a> at
             North Point, Pier 41; not a measurement. Air temperature and wind: measured at NOAA’s Golden
             Gate station (9414290) for past times, forecast by the{' '}
@@ -104,6 +96,10 @@ function App() {
             single-sample beach limits; results are published about a week after sampling and
             don’t include advisories. Map ©{' '}
             <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+          </p>
+          <p>
+            This website is still a work in progress. Real conditions vary, and you should always use your own
+            judgment while swimming.
           </p>
         </div>
       </div>
@@ -134,7 +130,8 @@ function DaySection({ data, conditions, time, onSelect, includeSlider, selected 
   const weatherLoading = weather.measured === null && weather.forecast === null
   return (
     <section className="day">
-      <h2 className="label">{formatDay(time)} · Pacific Time</h2>
+      {/* On a laptop the slider's label, right below, already shows the day. */}
+      {!includeSlider && <h2 className="label">{formatDay(time)} · Pacific Time</h2>}
       {includeSlider && <TimeTile currentEvents={data === null ? [] : data.current.events} selected={selected} />}
       <div className="tile">
         <h3 className="label">Tide</h3>

@@ -21,8 +21,6 @@ export type TideData = {
 
 export type CurrentData = {
   station: StationInfo
-  floodDirDeg: number // compass direction the water flows toward on a flood
-  ebbDirDeg: number // compass direction the water flows toward on an ebb
   samples: CurrentSample[] // sorted by time
   events: CurrentEvent[] // sorted by time
 }
@@ -34,9 +32,6 @@ export type PredictionData = {
 }
 
 export type CurrentPhase = 'flood' | 'ebb' | 'slack'
-
-/** The five words the app uses for the current (thresholds in conditions.ts). */
-export type CurrentState = 'strongFlood' | 'weakFlood' | 'slack' | 'weakEbb' | 'strongEbb'
 
 /**
  * A slack, labeled by what came before it:
@@ -57,16 +52,13 @@ export type Conditions = {
   current: {
     velocityKt: number // signed: + flood, − ebb
     speedKt: number // always >= 0
-    phase: CurrentPhase
-    state: CurrentState
-    directionDeg: number | null // null at slack
+    phase: CurrentPhase // slack under SLACK_THRESHOLD_KT (conditions.ts)
     /** The peak of the flood or ebb we're in, between the slacks around `at` (may already be past). */
     cycleMax: CurrentEvent | null
     /** The first slack after `at`; while the current is slack, the slack we're in (may be just past). */
     nextSlack: SlackEvent | null
     /** The first slack of the other kind after nextSlack (next high slack → this is a low slack). */
     nextSlackOfOtherKind: SlackEvent | null
-    nextMax: CurrentEvent | null
   }
 }
 

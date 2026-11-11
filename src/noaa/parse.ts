@@ -63,13 +63,6 @@ export function parseCurrentEvents(raw: RawCurrentResponse): CurrentEvent[] {
   })
 }
 
-/** Flood/ebb directions are repeated on every row; take them from the first. */
-export function parseCurrentDirections(raw: RawCurrentResponse): { floodDirDeg: number; ebbDirDeg: number } {
-  const first = raw.current_predictions.cp[0]
-  if (!first) throw new Error('NOAA returned no current predictions')
-  return { floodDirDeg: first.meanFloodDir, ebbDirDeg: first.meanEbbDir }
-}
-
 /** Measured air temperature. Missing readings ("") are skipped. */
 export function parseAirTemps(raw: RawAirTempResponse): AirTempSample[] {
   const samples: AirTempSample[] = []

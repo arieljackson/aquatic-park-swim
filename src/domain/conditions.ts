@@ -1,37 +1,16 @@
 // Pure functions: given prediction data and a moment, what are the conditions?
 
-import type { Conditions, CurrentEvent, CurrentPhase, CurrentState, PredictionData, SlackEvent } from './types'
+import type { Conditions, CurrentEvent, CurrentPhase, PredictionData, SlackEvent } from './types'
 
-/**
- * Below this speed (knots) we call the current "slack".
- * Open question: with Aquatic Park speeds (half the Golden Gate's), this gives slack
- * windows of 30–60 minutes. To revisit with real swims.
- */
+/** Below this speed (knots) we call the current "slack". */
 export const SLACK_THRESHOLD_KT = 0.2
 
-/**
- * At or above this speed (knots) a flood or ebb is "strong"; below it, "weak".
- * Open question: 1 kt is a starting point, still to be checked against real swims.
- */
-export const STRONG_THRESHOLD_KT = 1.0
-
-/** The five-word state for a signed velocity (+ flood, − ebb). */
-export function currentState(velocityKt: number): CurrentState {
+/** Flood, ebb or slack for a signed velocity (+ flood, − ebb). */
+export function currentPhase(velocityKt: number): CurrentPhase {
   const speedKt = Math.abs(velocityKt)
   if (speedKt < SLACK_THRESHOLD_KT) return 'slack'
-  const isStrong = speedKt >= STRONG_THRESHOLD_KT
-  if (velocityKt > 0) {
-    if (isStrong) return 'strongFlood'
-    return 'weakFlood'
-  }
-  if (isStrong) return 'strongEbb'
-  return 'weakEbb'
-}
-
-function phaseOf(state: CurrentState): CurrentPhase {
-  if (state === 'strongFlood' || state === 'weakFlood') return 'flood'
-  if (state === 'strongEbb' || state === 'weakEbb') return 'ebb'
-  return 'slack'
+  if (velocityKt > 0) return 'flood'
+  return 'ebb'
 }
 
 /**
@@ -145,11 +124,7 @@ export function conditionsAt(at: Date, data: PredictionData): Conditions | null 
   // Current: NOAA's velocity is signed (positive = flood, negative = ebb).
   // Speed is the size of the velocity regardless of sign.
   const speedKt = Math.abs(velocityKt)
-  const state = currentState(velocityKt)
-  const phase = phaseOf(state)
-  let directionDeg: number | null = null
-  if (phase === 'flood') directionDeg = data.current.floodDirDeg
-  if (phase === 'ebb') directionDeg = data.current.ebbDirDeg
+  const phase = currentPhase(velocityKt)
 
   const events = data.current.events
 
@@ -159,7 +134,7 @@ export function conditionsAt(at: Date, data: PredictionData): Conditions | null 
   // The one we're in is whichever slack time is closer to t: the last one before it or
   // the first one after it.
   let searchSlacksAfter = t
-  if (state === 'slack') {
+  if (phase === 'slack') {
     const lastSlackIndex = events.findLastIndex((event) => event.kind === 'slack' && event.time.getTime() <= t)
     const firstSlackAfter = events.find((event) => event.kind === 'slack' && event.time.getTime() > t)
     if (lastSlackIndex !== -1) {
@@ -179,7 +154,6 @@ export function conditionsAt(at: Date, data: PredictionData): Conditions | null 
   if (nextSlack !== null) {
     nextSlackOfOtherKind = upcomingSlacks.find((slack) => slack.kind !== nextSlack.kind) ?? null
   }
-  const nextMax = events.find((event) => event.time.getTime() > t && event.kind !== 'slack') ?? null
 
   return {
     at,
@@ -188,12 +162,9 @@ export function conditionsAt(at: Date, data: PredictionData): Conditions | null 
       velocityKt,
       speedKt,
       phase,
-      state,
-      directionDeg,
       cycleMax: cycleMaxAt(events, t),
       nextSlack,
       nextSlackOfOtherKind,
-      nextMax,
     },
   }
 }

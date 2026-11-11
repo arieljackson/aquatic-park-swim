@@ -21,8 +21,8 @@ export const TOP_SPACE = 20
 const BOTTOM_SPACE = 18
 /** Under the plot, for the hour labels. */
 export const X_AXIS_HEIGHT = 22
-/** The current's dashed lines: the "strong" threshold. */
-const STRONG_KT = 1
+/** The current's dashed reference lines, at ±1 kt. */
+const REFERENCE_KT = 1
 
 /** Rough width of a label in 10px IBM Plex Mono: 6 px per character. */
 function textWidth(text: string): number {
@@ -123,7 +123,7 @@ export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartP
 
   // Symmetric around zero so flood and ebb are drawn at the same scale, and always
   // tall enough to show the ±1 kt lines.
-  const biggestSpeed = Math.max(STRONG_KT + 0.3, ...samples.map((s) => Math.abs(s.velocityKt)))
+  const biggestSpeed = Math.max(REFERENCE_KT + 0.3, ...samples.map((s) => Math.abs(s.velocityKt)))
   const plotBottom = TOP_SPACE + CURRENT_PLOT_HEIGHT
   const y = linearScale(-biggestSpeed, biggestSpeed, plotBottom - BOTTOM_SPACE, TOP_SPACE).toPixel
   const zeroY = y(0)
@@ -171,7 +171,7 @@ export function CurrentChart({ data, conditions, axis, width, onSelect }: ChartP
       <text x={axis.left - 8} y={plotBottom - 4} textAnchor="end" className="chart__axis chart__axis--word">
         EBB
       </text>
-      {[STRONG_KT, -STRONG_KT].map((kt) => (
+      {[REFERENCE_KT, -REFERENCE_KT].map((kt) => (
         <g key={kt}>
           <line x1={axis.left} y1={y(kt)} x2={axis.right} y2={y(kt)} className="chart__threshold" />
           <text x={axis.left - 8} y={y(kt) + 3} textAnchor="end" className="chart__axis">
