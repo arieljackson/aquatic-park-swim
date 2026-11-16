@@ -4,40 +4,28 @@
 //
 // The map is rotated 17° like the cove map, so the Golden Gate's flood/ebb axis is
 // horizontal. Arrows (wideArrows.ts for where) are all the same size; their color is the
-// speed, in NOAA's seven speed bands. Each band's color is brighter than the one before
-// (violet → magenta → rose → orange → amber → yellow → pale yellow, a plasma-like
-// palette), so the fastest water stands out most and the order holds for color-blind
-// readers. The three NOAA stations the tiles use are marked by name.
+// speed, in NOAA's seven speed bands (speedBands.ts). The three NOAA stations the tiles
+// use are marked by name.
 
 import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import type { CurrentField, CurrentSnapshot } from '../../domain/currentField'
 import { currentFieldAt } from '../../domain/currentField'
 import { useElementWidth } from '../charts/useElementWidth'
+import { SOURCE_PAGES } from '../sourcePages'
 import { project, toMapVector } from './projection'
+import { MIN_ARROW_SPEED_KT, arrowPath, bandColor } from './speedBands'
+import { SpeedStrip } from './SpeedStrip'
 import { wideSpots } from './wideArrows'
 import type { WideSpot } from './wideArrows'
 import { BEACH, BREAKWATERS, BRIDGE, BRIDGE_TOWERS, LAND, MAP_ROTATION_DEG, PARKS, PIERS, WIDE_VIEW } from './wideShapes'
 import './map.css'
-
-/** NOAA's speed bands (knots): a speed under a band's `below` is in that band. */
-const SPEED_BANDS = [
-  { below: 0.5, color: '#765dcf' },
-  { below: 1.0, color: '#c851c1' },
-  { below: 1.5, color: '#f86685' },
-  { below: 2.0, color: '#fe8f5b' },
-  { below: 2.5, color: '#feb354' },
-  { below: 3.0, color: '#fed252' },
-  { below: Infinity, color: '#f9f39b' },
-]
 
 // Arrows, in map units (about meters): a line with an open V head, centered on its spot.
 const ARROW_LENGTH = 210
 const ARROW_WIDTH = 18
 /** The head's strokes go this far back from the tip, and 0.6 × this far to each side. */
 const HEAD_SIZE = 75
-/** Spots slower than this get no arrow (no clear direction). */
-const MIN_SPEED_KT = 0.05
 
 /** `labelLeft`: the name goes to the left of the ring (Pier 41 is near the map's right edge). */
 type Station = { name: string; at: { x: number; y: number }; labelLeft: boolean }
@@ -164,14 +152,6 @@ export function WideMap({ field, time, controls }: Props) {
   )
 }
 
-/** The color of a speed's band. */
-function bandColor(speedKt: number): string {
-  for (const band of SPEED_BANDS) {
-    if (speedKt < band.below) return band.color
-  }
-  return SPEED_BANDS[SPEED_BANDS.length - 1].color
-}
-
 /** One arrow per spot, colored by speed. */
 function Arrows({ spots, snapshot }: { spots: WideSpot[]; snapshot: CurrentSnapshot }) {
   return (
@@ -185,7 +165,7 @@ function Arrows({ spots, snapshot }: { spots: WideSpot[]; snapshot: CurrentSnaps
           north += spot.weights[i] * snapshot.north[spot.neighbors[i]]
         }
         const speed = Math.hypot(east, north)
-        if (speed < MIN_SPEED_KT) return null
+        if (speed < MIN_ARROW_SPEED_KT) return null
         const direction = toMapVector(east / speed, north / speed)
         return (
           <path
@@ -200,35 +180,7 @@ function Arrows({ spots, snapshot }: { spots: WideSpot[]; snapshot: CurrentSnaps
 }
 
 /**
- * A line arrow centered on (x, y), pointing along the unit vector (ux, uy), `length`
- * long, with an open V head: two strokes from points `head` back from the tip and
- * 0.6 × head to either side:
- *   side point = tip − head × (ux, uy) ± 0.6 × head × (−uy, ux)
- */
-function arrowPath(x: number, y: number, ux: number, uy: number, length: number, head: number): string {
-  const half = length / 2
-  const tipX = x + ux * half
-  const tipY = y + uy * half
-  const backX = tipX - ux * head
-  const backY = tipY - uy * head
-  const sideX = -uy * head * 0.6
-  const sideY = ux * head * 0.6
-  const tail = `M${(x - ux * half).toFixed(1)},${(y - uy * half).toFixed(1)}`
-  const tip = `${tipX.toFixed(1)},${tipY.toFixed(1)}`
-  const left = `${(backX + sideX).toFixed(1)},${(backY + sideY).toFixed(1)}`
-  const right = `${(backX - sideX).toFixed(1)},${(backY - sideY).toFixed(1)}`
-  return `${tail} L${tip} M${left} L${tip} L${right}`
-}
-
-/** NOAA's SFBOFS current maps, linked from the legend. */
-const SFBOFS_PAGE = 'https://tidesandcurrents.noaa.gov/ofs/ofs_mapplots.html?ofsregion=sfb&subdomain=en&model_type=currents_forecast'
-
-/** Width of one band in the key's color strip, in pixels. */
-const STRIP_BAND_PX = 20
-
-/**
- * The key over the map, bottom left, like the cove map's: a strip of the band colors with
- * each boundary's speed centered under it (band i ends at x = (i + 1) × STRIP_BAND_PX),
+ * The key over the map, bottom left, like the cove map's: the speed bands' color strip,
  * then a link to the model's own maps that also says whether the hour shown is a
  * forecast (or loading, or missing).
  */
@@ -237,21 +189,11 @@ function SpeedKey({ field, snapshot }: { field: CurrentField | null; snapshot: C
   if (field === null) source = 'Loading SFBOFS…'
   else if (snapshot === null) source = 'No SFBOFS data for this time'
   else if (snapshot.kind === 'forecast') source = 'SFBOFS forecast'
-  const width = SPEED_BANDS.length * STRIP_BAND_PX
   return (
     <div className="map__key mono">
       <span>Current speed (kt)</span>
-      <svg width={width} height={22} aria-hidden="true" className="map__key-strip">
-        {SPEED_BANDS.map((band, i) => (
-          <rect key={band.color} x={i * STRIP_BAND_PX} y={0} width={STRIP_BAND_PX} height={7} fill={band.color} />
-        ))}
-        {SPEED_BANDS.slice(0, -1).map((band, i) => (
-          <text key={band.below} x={(i + 1) * STRIP_BAND_PX} y={19} textAnchor="middle" className="map__key-tick">
-            {band.below}
-          </text>
-        ))}
-      </svg>
-      <a className={field === null ? 'map__key-source is-loading' : 'map__key-source'} href={SFBOFS_PAGE}>
+      <SpeedStrip />
+      <a className={field === null ? 'map__key-source is-loading' : 'map__key-source'} href={SOURCE_PAGES.sfbofsCurrents}>
         {source} →
       </a>
     </div>

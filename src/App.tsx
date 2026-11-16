@@ -10,9 +10,12 @@
 // charts, where everything is already in view.
 
 import { usePredictions } from './sources/usePredictions'
+import { useCoveCurrent } from './sources/coveCurrent'
 import { conditionsAt } from './domain/conditions'
+import { coversRange } from './domain/coveCurrent'
 import type { Conditions, CurrentEvent, PredictionData } from './domain/types'
 import { formatDay } from './time/format'
+import { addPacificDays, startOfPacificDay } from './time/pacific'
 import { useSelectedTime } from './time/useSelectedTime'
 import { useWeather } from './sources/useWeather'
 import type { SelectedTime } from './time/useSelectedTime'
@@ -30,6 +33,7 @@ import { DebugTables } from './ui/DebugTables'
 import { Header } from './ui/Header'
 import { MapPanel } from './ui/map/MapPanel'
 import { Panels } from './ui/Panels'
+import type { CurrentSource } from './ui/sourcePages'
 import { TimeSlider } from './ui/TimeSlider'
 import { useIsWide } from './ui/useIsWide'
 import { WeatherTiles } from './ui/WeatherTiles'
@@ -41,7 +45,20 @@ const showDebug = new URLSearchParams(window.location.search).has('debug')
 function App() {
   const selected = useSelectedTime()
   const { data, error } = usePredictions(selected.time)
-  const shown = data === null ? null : data.shown
+  const cove = useCoveCurrent(selected.time)
+
+  // The current shown everywhere (tiles, slider, chart, cove map): NOAA's SFBOFS model
+  // around the cove (the open water the COVE map shows, averaged) when it covers the whole
+  // selected day, otherwise NOAA's Alcatraz SW prediction. The tide is always NOAA's Pier 41 prediction.
+  const dayStart = startOfPacificDay(selected.time)
+  const dayEnd = addPacificDays(dayStart, 1)
+  let currentSource: CurrentSource = 'alcatraz'
+  if (cove.data !== null && coversRange(cove.data, dayStart, dayEnd)) currentSource = 'sfbofs'
+  let shown: PredictionData | null = null
+  if (data !== null) {
+    shown = data.shown
+    if (currentSource === 'sfbofs' && cove.data !== null) shown = { ...data.shown, current: cove.data }
+  }
   const conditions = shown === null ? null : conditionsAt(selected.time, shown)
   const isWide = useIsWide()
 
@@ -56,6 +73,8 @@ function App() {
         <div className="layout__map">
           <MapPanel
             time={selected.time}
+            field={cove.field}
+            currentSource={currentSource}
             phase={conditions === null ? null : conditions.current.phase}
             speedKt={conditions === null ? 0 : conditions.current.speedKt}
           />
@@ -66,7 +85,7 @@ function App() {
           </div>
         )}
         <div className="layout__panels">
-          <Panels conditions={conditions} />
+          <Panels conditions={conditions} currentSource={currentSource} />
         </div>
         {/* Right after the top tiles on a phone, so all the numbers come before the charts.
             (On a laptop it sits under the map: the grid places it by name.) */}
@@ -87,6 +106,11 @@ function App() {
           <p>
             This website is still a work in progress. Real conditions vary, and you should always use your own
             judgment while swimming.
+          </p>
+          <p>
+            SFBOFS models provide better data around Aquatic Cove than the fixed station locations. Around the
+            stations, SFBOFS values are very similar to station values. Based on both personal experience and
+            historical analysis, the timing of SFBOFS slack is more accurate than Alcatraz SW for the cove.
           </p>
         </div>
       </div>

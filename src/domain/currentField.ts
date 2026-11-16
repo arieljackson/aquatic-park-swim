@@ -50,3 +50,24 @@ export function currentFieldAt(field: CurrentField, time: Date): CurrentSnapshot
   }
   return null
 }
+
+/**
+ * Several days' fields as one: the points (the same mesh for every day) and every hour,
+ * in time order, each hour once (neighboring days overlap by an hour). Days that are
+ * still loading or have no data (null, or no hours) are skipped; null if none has data.
+ */
+export function mergeFields(fields: Array<CurrentField | null>): CurrentField | null {
+  let points: CurrentField['points'] | null = null
+  const byTime = new Map<number, CurrentFieldHour>()
+  for (const field of fields) {
+    if (field === null || field.hours.length === 0) continue
+    if (points === null) points = field.points
+    for (const hour of field.hours) {
+      const t = hour.time.getTime()
+      if (!byTime.has(t)) byTime.set(t, hour)
+    }
+  }
+  if (points === null) return null
+  const hours = [...byTime.values()].sort((a, b) => a.time.getTime() - b.time.getTime())
+  return { points, hours }
+}

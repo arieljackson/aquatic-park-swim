@@ -45,18 +45,14 @@ type Result = {
   error: string | null
 }
 
-/**
- * The SFBOFS model's current for the selected day. Nothing is loaded while `enabled` is
- * false (the BAY map hasn't been opened), so the page doesn't download data it doesn't show.
- */
-export function useCurrentField(time: Date, enabled: boolean): Result {
+/** The SFBOFS model's current for the San Francisco day containing `time`. */
+export function useCurrentField(time: Date): Result {
   const now = useClock()
   const key = dayRefreshKey(time, now)
   const day = dayOfKey(key)
   const [loaded, setLoaded] = useState<{ day: string; field: CurrentField | null; error: string | null } | null>(null)
 
   useEffect(() => {
-    if (!enabled) return
     let ignore = false
     loadDay(key).then(
       (field) => {
@@ -75,9 +71,9 @@ export function useCurrentField(time: Date, enabled: boolean): Result {
     return () => {
       ignore = true
     }
-    // Reload when the key changes (a new day, or a new hour for today), or once enabled.
+    // Reload when the key changes: a new day, or a new hour for today.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, enabled])
+  }, [key])
 
   if (loaded === null || loaded.day !== day) return { field: null, error: null }
   return { field: loaded.field, error: loaded.error }

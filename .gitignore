@@ -23,8 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# Design references and notes: local only, never committed.
-references/
+# Third-party design references (screenshots of other apps): local only, never committed.
+# The app's own screenshots (references/current, references/archive) are committed.
+references/external/
 
 # Local only, never committed
 CLAUDE.md
