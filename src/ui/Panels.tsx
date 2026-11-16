@@ -1,7 +1,10 @@
-// The grid of numbers under the map: current (state), speed, next slack and tide.
+// The grid of numbers under the map: current (state), speed, next slack and tide. Each
+// tile ends with a link to the NOAA station its numbers come from (marked on the map too).
 
 import type { Conditions, CurrentPhase } from '../domain/types'
 import { formatCountdown, formatRelativeDay, formatTime, formatTimeParts } from '../time/format'
+import { SourceLink } from './SourceLink'
+import { SOURCE_PAGES } from './sourcePages'
 import { StateGlyph } from './StateGlyph'
 import './panels.css'
 
@@ -36,6 +39,7 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
             others. */}
         <p className="panel__state-words panel__line">{PHASE_WORDS[current.phase]}</p>
         <p className="panel__state-words panel__line">{'\u00a0'}</p>
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
 
       <section className="panel">
@@ -52,11 +56,13 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
               longest "12:47 AM tomorrow" wouldn't fit. */}
           {current.cycleMax === null ? '\u00a0' : formatTime(current.cycleMax.time)}
         </p>
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
 
       <section className="panel panel--wide">
         <h2 className="label">Next slack</h2>
         <NextSlack at={at} conditions={conditions} />
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
 
       <section className="panel panel--wide">
@@ -80,6 +86,7 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
         <p className="panel__detail panel__line">
           {nextTide === null ? '\u00a0' : `${formatTime(nextTide.time)} ${formatRelativeDay(nextTide.time, at)}`}
         </p>
+        <SourceLink href={SOURCE_PAGES.pier41Tide}>NOAA Pier 41</SourceLink>
       </section>
     </div>
   )
@@ -135,24 +142,28 @@ function LoadingPanels() {
         <div className="panel__glyph" />
         <p className="panel__state-words panel__line is-loading">--</p>
         <p className="panel__state-words panel__line">{empty}</p>
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
       <section className="panel">
         <h2 className="label">Speed</h2>
         <p className="panel__big panel__line mono is-loading">--</p>
         <p className="panel__detail panel__line">{empty}</p>
         <p className="panel__detail panel__line">{empty}</p>
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
       <section className="panel panel--wide">
         <h2 className="label">Next slack</h2>
         <p className="panel__big panel__line mono is-loading">--:--</p>
         <p className="panel__detail panel__line">{empty}</p>
         <p className="panel__detail panel__line">{empty}</p>
+        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
       </section>
       <section className="panel panel--wide">
         <h2 className="label">Tide</h2>
         <p className="panel__big panel__line mono is-loading">--</p>
         <p className="panel__detail panel__line">{empty}</p>
         <p className="panel__detail panel__line">{empty}</p>
+        <SourceLink href={SOURCE_PAGES.pier41Tide}>NOAA Pier 41</SourceLink>
       </section>
     </div>
   )

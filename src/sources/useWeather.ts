@@ -5,13 +5,16 @@
 //
 // Measurements are loaded for the selected day ±1 day and cached, like the tide and
 // current predictions. Today's are reloaded once an hour (Pacific), even if the page
-// just sits open, since new readings keep arriving. The forecast is loaded once per visit.
+// just sits open, since new readings keep arriving (see refreshKey.ts). The forecast is
+// reloaded once an hour too.
 
 import { useEffect, useState } from 'react'
 import { interpolate } from '../domain/conditions'
 import { fetchMeasuredWeather } from '../noaa/client'
 import { addPacificDays, pacificDateString, startOfPacificDay, toPacific } from '../time/pacific'
+import { useClock } from '../time/useClock'
 import { fetchForecastWeather } from './nws'
+import { dayRefreshKey } from './refreshKey'
 import type { AirTempSample, Weather, WindSample } from '../domain/types'
 
 const MINUTE = 60 * 1000
@@ -26,19 +29,6 @@ export type WeatherSource = 'measured' | 'forecast'
 
 const measuredCache = new Map<string, Promise<Weather>>()
 
-/** How often the hook checks whether a new hour has started. */
-const CLOCK_TICK_MS = 5 * MINUTE
-
-/**
- * The cache key for a day's measurements: "2026-11-10" for a past or future day, and
- * "2026-11-10 14h" for today, so today's key changes every Pacific hour.
- */
-function measuredKey(time: Date, now: Date): string {
-  const day = pacificDateString(time)
-  if (day !== pacificDateString(now)) return day
-  return `${day} ${toPacific(now).hour}h`
-}
-
 function loadMeasured(time: Date, key: string): Promise<Weather> {
   const cached = measuredCache.get(key)
   if (cached) return cached
@@ -50,16 +40,17 @@ function loadMeasured(time: Date, key: string): Promise<Weather> {
   return request
 }
 
-let forecastRequest: Promise<Weather> | null = null
+/** The forecast, with the Pacific hour it was loaded for ("2026-11-10 14h"). */
+let forecastRequest: { hourKey: string; request: Promise<Weather> } | null = null
 
-function loadForecast(): Promise<Weather> {
-  if (forecastRequest === null) {
-    forecastRequest = fetchForecastWeather()
-    forecastRequest.catch(() => {
-      forecastRequest = null // try again next time
-    })
-  }
-  return forecastRequest
+function loadForecast(hourKey: string): Promise<Weather> {
+  if (forecastRequest !== null && forecastRequest.hourKey === hourKey) return forecastRequest.request
+  const request = fetchForecastWeather()
+  request.catch(() => {
+    if (forecastRequest !== null && forecastRequest.request === request) forecastRequest = null // try again next time
+  })
+  forecastRequest = { hourKey, request }
+  return request
 }
 
 export type WeatherData = {
@@ -72,14 +63,11 @@ export function useWeather(time: Date): WeatherData {
   const [measured, setMeasured] = useState<{ day: string; weather: Weather | null } | null>(null)
   const [forecast, setForecast] = useState<Weather | null>(null)
 
-  // The clock, updated every few minutes, so today's key moves on to the next hour even
-  // when nothing else on the page changes.
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), CLOCK_TICK_MS)
-    return () => clearInterval(timer)
-  }, [])
-  const key = measuredKey(time, now)
+  // The clock, so today's key moves on to the next hour even when nothing else on the
+  // page changes.
+  const now = useClock()
+  const key = dayRefreshKey(time, now)
+  const forecastKey = `${pacificDateString(now)} ${toPacific(now).hour}h`
 
   useEffect(() => {
     let ignore = false
@@ -88,7 +76,12 @@ export function useWeather(time: Date): WeatherData {
         if (!ignore) setMeasured({ day, weather })
       },
       () => {
-        if (!ignore) setMeasured({ day, weather: null })
+        if (ignore) return
+        // A failed hourly reload keeps what's already shown for this day.
+        setMeasured((previous) => {
+          if (previous !== null && previous.day === day) return previous
+          return { day, weather: null }
+        })
       },
     )
     return () => {
@@ -101,18 +94,18 @@ export function useWeather(time: Date): WeatherData {
 
   useEffect(() => {
     let ignore = false
-    loadForecast().then(
+    loadForecast(forecastKey).then(
       (weather) => {
         if (!ignore) setForecast(weather)
       },
       () => {
-        if (!ignore) setForecast(null)
+        // Keep the forecast already shown, if any: an hour-old forecast beats none.
       },
     )
     return () => {
       ignore = true
     }
-  }, [])
+  }, [forecastKey])
 
   let measuredForDay: Weather | null = null
   if (measured !== null && measured.day === day) measuredForDay = measured.weather

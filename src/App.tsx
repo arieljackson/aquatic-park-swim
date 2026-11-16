@@ -84,20 +84,6 @@ function App() {
         </div>
         <div className="layout__caption caption">
           <p>
-            Data: tide and current predictions from{' '}
-            <a href="https://tidesandcurrents.noaa.gov/">NOAA</a> (stations 9414290 and SFB1204). Tide: Golden Gate with
-            NOAA offset to North Point, Pier 41. Current: Alcatraz SW. Water temperature: estimated by NOAA’s{' '}
-            <a href="https://tidesandcurrents.noaa.gov/ofs/sfbofs/sfbofs.html">San Francisco Bay model (SFBOFS)</a> at
-            North Point, Pier 41; not a measurement. Air temperature and wind: measured at NOAA’s Golden
-            Gate station (9414290) for past times, forecast by the{' '}
-            <a href="https://www.weather.gov/mtr/">National Weather Service</a> for later ones.
-            Water quality: SFPUC’s weekly bacteria samples at Aquatic Park (station 211), from{' '}
-            <a href="https://data.sf.gov/d/v3fv-x3ux">DataSF</a>, compared with California’s
-            single-sample beach limits; results are published about a week after sampling and
-            don’t include advisories. Map ©{' '}
-            <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
-          </p>
-          <p>
             This website is still a work in progress. Real conditions vary, and you should always use your own
             judgment while swimming.
           </p>

@@ -3,10 +3,13 @@
 // no sensor measures the cove. It covers about the last month, up to about 2 days ahead.
 //
 // Loaded for the selected San Francisco day and cached by day, like the predictions.
+// Today's is reloaded once an hour while the page is open (see refreshKey.ts): each new
+// model run turns forecast hours into nowcast hours.
 
 import { useEffect, useState } from 'react'
 import { interpolate } from '../domain/conditions'
-import { pacificDateString } from '../time/pacific'
+import { useClock } from '../time/useClock'
+import { dayOfKey, dayRefreshKey } from './refreshKey'
 
 export type WaterTempSample = { time: Date; tempF: number; kind: 'nowcast' | 'forecast' }
 
@@ -33,7 +36,7 @@ const cache = new Map<string, Promise<WaterTempSample[]>>()
 function loadDay(key: string): Promise<WaterTempSample[]> {
   const cached = cache.get(key)
   if (cached) return cached
-  const request = fetchWaterTemp(key)
+  const request = fetchWaterTemp(dayOfKey(key))
   request.catch(() => cache.delete(key)) // don't keep failures
   cache.set(key, request)
   return request
@@ -45,8 +48,10 @@ type Result = {
 }
 
 export function useWaterTemp(time: Date): Result {
-  const key = pacificDateString(time)
-  const [loaded, setLoaded] = useState<{ key: string; samples: WaterTempSample[] | null; error: string | null } | null>(
+  const now = useClock()
+  const key = dayRefreshKey(time, now)
+  const day = dayOfKey(key)
+  const [loaded, setLoaded] = useState<{ day: string; samples: WaterTempSample[] | null; error: string | null } | null>(
     null,
   )
 
@@ -54,18 +59,28 @@ export function useWaterTemp(time: Date): Result {
     let ignore = false
     loadDay(key).then(
       (samples) => {
-        if (!ignore) setLoaded({ key, samples, error: null })
+        if (!ignore) setLoaded({ day, samples, error: null })
       },
       (e: unknown) => {
-        if (!ignore) setLoaded({ key, samples: null, error: e instanceof Error ? e.message : String(e) })
+        if (ignore) return
+        const error = e instanceof Error ? e.message : String(e)
+        // A failed hourly reload keeps what's already shown for this day.
+        setLoaded((previous) => {
+          if (previous !== null && previous.day === day && previous.samples !== null) return previous
+          return { day, samples: null, error }
+        })
       },
     )
     return () => {
       ignore = true
     }
+    // Reload when the key changes: a new day, or a new hour for today.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  if (loaded === null || loaded.key !== key) return { samples: null, error: null }
+  // What's loaded belongs to a different day: we're still loading this one. (During an
+  // hourly reload of today, the previous answer stays up.)
+  if (loaded === null || loaded.day !== day) return { samples: null, error: null }
   return { samples: loaded.samples, error: loaded.error }
 }
 

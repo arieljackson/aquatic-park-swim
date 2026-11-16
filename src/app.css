@@ -91,8 +91,8 @@
   white-space: nowrap;
 }
 
-/* A value in words ("Meets standards"): smaller, in the text font, so it fits the
-   tile (about 120px at 16px, with 133px available on a 375px phone). */
+/* A value in words ("Meets standards", "Elevated bacteria"): smaller, in the text font,
+   so it fits the tile (about 130px at 16px, with 133px available on a 375px phone). */
 .temp__value--words {
   font-size: 16px;
   line-height: 26px; /* same height as the numbers in the other tiles */
@@ -102,10 +102,22 @@
 
 .temp__value--meets { color: var(--meets); }
 .temp__value--fails { color: var(--fails); }
+.temp__value--warn { color: var(--warn); }
 
 .temp__link {
   font-size: 12px;
   color: var(--text-soft);
+}
+
+/* A tile's last line: a small link to where its numbers come from (SourceLink.tsx).
+   Pushed to the bottom, so tiles side by side line theirs up. */
+.tile-source {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* "kt WSW" after the wind speed: smaller, like the units in the top tiles. */

@@ -1,20 +1,29 @@
 // The tiles under the charts: air temperature, water temperature, wind and water
 // quality, for the selected time. Like the tiles at the top, each always has the same lines, so it never
 // changes shape: a label, the value, and a short line saying what kind of number it is
-// (measured, forecast, model estimate). The caption names the sources and places.
+// (measured, forecast, model estimate), then a link to where it comes from.
 //
 // Sized for a 375px-wide phone, where each tile has about 133px for text: the longest
 // value is "25 mph WSW" (unit and direction drawn small), the longest small line "Gusts 25 mph".
 // Only measurements have gusts (the forecast has none), so a gust line means "measured".
-// Water quality says "Meets standards" (green) or "Fails standards" (red): the same
-// length, so the tile looks the same either way.
+// Water quality's headline combines Aquatic Park ("the cove") with the other San Francisco
+// stations (bay shore and ocean beaches), since after rain the others are often
+// re-sampled sooner than the cove:
+//   cove over a limit                                  → "Elevated bacteria" (red)
+//   else, another station's recent sample over a limit → "Nearby warnings" (amber)
+//   else                                               → "Meets standards" (green)
+// Headlines are about the same length, so the tile keeps its shape. The small line under
+// it: the cove's sample date ("Sampled Mon, Nov 9") for green and red, how many other
+// stations fail ("7 sites failing") for amber.
 
 import { formatDay } from '../time/format'
 import { fromPacific, pacificDateString, parseDateString } from '../time/pacific'
 import { compassPoint, knotsToMph } from '../domain/units'
 import { airTempAt, useWeather, windAt } from '../sources/useWeather'
-import { checkLimits, useWaterQuality } from '../sources/waterQuality'
+import { checkLimits, otherSitesCheck, useWaterQuality } from '../sources/waterQuality'
 import { useWaterTemp, waterTempAt } from '../sources/waterTemp'
+import { SourceLink } from './SourceLink'
+import { SOURCE_PAGES } from './sourcePages'
 
 export function WeatherTiles({ time }: { time: Date }) {
   const water = useWaterTemp(time)
@@ -52,6 +61,17 @@ export function WeatherTiles({ time }: { time: Date }) {
     windDetail = 'Loading…'
   }
 
+  // Air and wind come from the same place: the Golden Gate station when measured, the NWS
+  // when forecast (and the station while loading or missing).
+  let weatherSource = <SourceLink href={SOURCE_PAGES.goldenGateStation}>NOAA Golden Gate</SourceLink>
+  if (air !== null && air.source === 'forecast') {
+    weatherSource = <SourceLink href={SOURCE_PAGES.nwsForecast}>NWS forecast</SourceLink>
+  }
+  let windSource = <SourceLink href={SOURCE_PAGES.goldenGateStation}>NOAA Golden Gate</SourceLink>
+  if (windNow !== null && windNow.source === 'forecast') {
+    windSource = <SourceLink href={SOURCE_PAGES.nwsForecast}>NWS forecast</SourceLink>
+  }
+
   // Water: NOAA's bay model, about a month back to about 2 days ahead.
   let waterText = '--°F'
   let waterDetail = 'Loading…'
@@ -67,28 +87,41 @@ export function WeatherTiles({ time }: { time: Date }) {
     }
   }
 
-  // Water quality: the latest weekly SFPUC sample on or before the selected day.
+  // Water quality: the cove's latest SFPUC sample on or before the selected day, and the
+  // other San Francisco stations' recent samples.
   let qualityText = '--'
   let qualityClass = ''
   let qualityDetail = 'Not available'
   if (quality.loading) {
     qualityDetail = 'Loading…'
-  } else if (quality.sample !== null) {
-    const sampleDay = quality.sample.date
-    if (daysBetween(sampleDay, pacificDateString(time)) > MAX_SAMPLE_AGE_DAYS) {
+  } else if (quality.error === null) {
+    qualityDetail = '\u00a0'
+    // The cove's sample counts if it's recent enough to describe the selected day.
+    let coveFresh = false
+    let coveOver = false
+    let sampled = ''
+    if (quality.sample === null || daysBetween(quality.sample.date, pacificDateString(time)) > MAX_SAMPLE_AGE_DAYS) {
       qualityDetail = 'No recent sample'
     } else {
-      const check = checkLimits(quality.sample)
-      const sampled = formatDateString(sampleDay)
-      if (check.over) {
-        qualityText = 'Fails standards'
-        qualityClass = 'temp__value--fails'
-        qualityDetail = `${check.name} ${check.count.text} · ${sampled}`
-      } else {
-        qualityText = 'Meets standards'
-        qualityClass = 'temp__value--meets'
-        qualityDetail = `Sampled ${sampled}`
-      }
+      coveFresh = true
+      coveOver = checkLimits(quality.sample).over
+      sampled = `Sampled ${formatDateString(quality.sample.date)}`
+    }
+    const failingCount = otherSitesCheck(quality.others).failing.length
+
+    if (coveOver) {
+      qualityText = 'Elevated bacteria'
+      qualityClass = 'temp__value--fails'
+      qualityDetail = sampled
+    } else if (failingCount > 0) {
+      qualityText = 'Nearby warnings'
+      qualityClass = 'temp__value--warn'
+      if (failingCount === 1) qualityDetail = '1 site failing'
+      else qualityDetail = `${failingCount} sites failing`
+    } else if (coveFresh) {
+      qualityText = 'Meets standards'
+      qualityClass = 'temp__value--meets'
+      qualityDetail = sampled
     }
   }
 
@@ -103,11 +136,13 @@ export function WeatherTiles({ time }: { time: Date }) {
         <h2 className="label">Air temp</h2>
         <p className={`temp__value mono${pulse(airLoading)}`}>{airText}</p>
         <p className="temp__detail">{airDetail}</p>
+        {weatherSource}
       </section>
       <section className="temp">
         <h2 className="label">Water temp</h2>
         <p className={`temp__value mono${pulse(waterLoading)}`}>{waterText}</p>
         <p className="temp__detail">{waterDetail}</p>
+        <SourceLink href={SOURCE_PAGES.bayModel}>NOAA bay model</SourceLink>
       </section>
       <section className="temp">
         <h2 className="label">Wind</h2>
@@ -116,6 +151,7 @@ export function WeatherTiles({ time }: { time: Date }) {
           <span className="temp__unit"> mph {windDirection}</span>
         </p>
         <p className="temp__detail">{windDetail}</p>
+        {windSource}
       </section>
       <section className="temp">
         <h2 className="label">Water quality</h2>

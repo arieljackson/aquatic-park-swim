@@ -54,15 +54,23 @@ The app uses NOAA's tide predictions for the Golden Gate, shifted to North Point
 | Air temp | Measured at NOAA's Golden Gate station (9414290) | National Weather Service hourly forecast | ~7 days ahead |
 | Wind | Measured at 9414290, with gusts | NWS hourly forecast (no gusts) | ~7 days ahead |
 | Water temp | NOAA's San Francisco Bay model (SFBOFS) at Pier 41, surface | the same model's forecast | ~1 month back, ~2 days ahead |
-| Water quality | SFPUC's weekly bacteria sample at Aquatic Park (station 211) | the latest sample | as far back as the data goes |
+| Water quality | SFPUC's weekly bacteria sample at Aquatic Park (station 211), plus every other SFPUC station (bay shore and ocean beaches) sampled in the last 7 days | the latest samples | as far back as the data goes |
 
 - **Water temp is a model estimate:** no thermometer reports water temperature at the
   cove. The model runs four times a day; past hours come from each run's 6-hour
   "nowcast", later hours from the newest run's 48-hour forecast.
-- **Water quality** says "Meets standards" or "Fails standards" against California's
-  single-sample beach limits (listed under Credits). Results are published about a week
-  after sampling and don't include SFPUC's advisories (for example after sewer overflows
-  from rain), so the tile links to them. It never says "safe to swim".
+- **Water quality** compares samples with California's single-sample beach limits
+  (listed under Credits) and shows one of three states:
+  - "Meets standards": Aquatic Park and every other recent sample are under the limits
+    (with Aquatic Park's sample date).
+  - "Nearby warnings": Aquatic Park is under the limits, but another station's newest
+    sample from the last 7 days is over (with how many sites are failing). After rain,
+    other sites are often re-sampled sooner than Aquatic Park.
+  - "Elevated bacteria": Aquatic Park's own latest sample is over a limit (with its date).
+
+  Results are published about a week after sampling and don't include SFPUC's advisories
+  (for example after sewer overflows from rain), so the tile links to them. It never says
+  "safe to swim".
 - Beyond what a source covers, its tile shows "--".
 
 ## Running it
@@ -78,11 +86,12 @@ Add `?debug` to the URL to see Golden Gate and Pier 41 tide times side
 by side, and `?t=2026-11-08T09:20` to open at a specific time (Pacific).
 
 No API keys are needed. The browser calls NOAA's tides and currents API, the National
-Weather Service and DataSF directly. The one exception is water temperature: NOAA's
-model server doesn't allow browser requests, so `api/water-temp.ts` runs on Vercel as a
-small server function and returns just the numbers needed
-(`/api/water-temp?day=2026-11-08`). `npm run dev` can't run it, so the dev server forwards
-`/api` requests to the live site (see `vite.config.ts`).
+Weather Service and DataSF directly. The exceptions are NOAA's bay model (SFBOFS): its
+server doesn't allow browser requests, so small server functions in `api/` run on Vercel
+and return just the numbers needed. `api/water-temp.ts` gives the water temperature
+(`/api/water-temp?day=2026-11-08`), and `api/currents.ts` gives the model's surface
+currents around the cove (`/api/currents?day=2026-11-08`), kept for a future map and not
+used by the page yet. `npm run dev` runs these functions locally (see `vite.config.ts`).
 
 The map is built from OpenStreetMap data by `scripts/cove-map/build.py`, and the
 current arrows are placed by `scripts/cove-map/arrows.py`. Both write TypeScript files
@@ -91,7 +100,8 @@ in `src/ui/map/`; they only need re-running if the map or arrow layout changes.
 ## Code layout
 
 ```
-api/        server code (a Vercel Function): water temperature from NOAA's bay model
+api/        server code (Vercel Functions): water temperature and currents from NOAA's
+            bay model
 src/
   noaa/     the only code that knows NOAA's tides and currents API (predictions,
             measured air temperature and wind)
@@ -103,6 +113,7 @@ src/
             which value to show for a given time
   ui/       React components: header, map, tiles, charts, time slider
 scripts/cove-map/   builds the map shapes and arrow positions from OpenStreetMap
+scripts/sfbofs-mesh/  finds which of the bay model's mesh points api/currents.ts reads
 ```
 
 ## Deploying
@@ -145,7 +156,8 @@ I am also thinking about this website: [SF Currents](https://l-36.com/sf_current
   (hourly forecast for grid square MTR 85,107) for later ones.
 - **Water quality:** San Francisco Public Utilities Commission
   [beach monitoring](https://www.sfpuc.gov/programs/ocean-and-beach-monitoring), weekly
-  bacteria samples at Aquatic Park (station 211), via
+  bacteria samples at Aquatic Park (station 211) and SFPUC's other bay shore and ocean
+  beach stations, via
   [DataSF](https://data.sf.gov/d/v3fv-x3ux) (Public Domain Dedication and License).
   Compared with California's single-sample beach limits
   ([AB 411](https://water.waterboards.ca.gov/water_issues/programs/beaches/beach_water_quality/beaches_program.html)):

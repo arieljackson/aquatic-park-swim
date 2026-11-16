@@ -1,7 +1,7 @@
 // The time the user is looking at.
 //
 // Two modes:
-// - live:   follows the current time, updating every minute (the default)
+// - live:   follows the current time (the default; see useClock.ts for when it updates)
 // - pinned: a specific time the user stepped or picked; it stays put
 //
 // The pinned time is mirrored in the URL (?t=2026-11-06T14:30, San Francisco time)
@@ -9,9 +9,9 @@
 
 import { useEffect, useState } from 'react'
 import { addPacificDays, formatUrlTime, fromPacific, parseDateString, parseUrlTime, toPacific } from './pacific'
+import { useClock } from './useClock'
 
-const MINUTE = 60 * 1000
-const HOUR = 60 * MINUTE
+const HOUR = 60 * 60 * 1000
 const URL_UPDATE_DELAY_MS = 300
 
 function readPinnedFromUrl(): Date | null {
@@ -31,14 +31,7 @@ export type SelectedTime = {
 
 export function useSelectedTime(): SelectedTime {
   const [pinned, setPinned] = useState<Date | null>(readPinnedFromUrl)
-  const [now, setNow] = useState(() => new Date())
-
-  // While live, refresh "now" every minute.
-  useEffect(() => {
-    if (pinned !== null) return
-    const timer = setInterval(() => setNow(new Date()), MINUTE)
-    return () => clearInterval(timer)
-  }, [pinned])
+  const now = useClock()
 
   // Keep the URL in sync. replaceState updates the address bar without adding
   // a browser history entry for every step.
@@ -79,9 +72,6 @@ export function useSelectedTime(): SelectedTime {
       const wall = toPacific(time)
       setPinned(fromPacific({ ...date, hour: wall.hour, minute: wall.minute }))
     },
-    goLive: () => {
-      setNow(new Date())
-      setPinned(null)
-    },
+    goLive: () => setPinned(null),
   }
 }

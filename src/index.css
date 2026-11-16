@@ -15,6 +15,7 @@
   --now: #ff8a3d;
   --meets: #5cc98a; /* water quality meets standards */
   --fails: #f07178; /* water quality fails a standard */
+  --warn: #e6b450; /* water quality: nearby warnings (other sites sampled since fail a standard) */
 
   --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
