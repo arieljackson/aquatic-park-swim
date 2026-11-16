@@ -204,3 +204,31 @@
   outline: 2px solid var(--now);
   outline-offset: -2px;
 }
+
+/* ------------------------------------------------------------- COVE map, SFBOFS arrows */
+
+/* Model arrows: lines with an open head; each open-water arrow's color (its speed band)
+   is set on the arrow. Widths are map units, set on the group (CurrentMap.tsx). */
+.map__model-arrows path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Eddies, in the cove and the harbor: a rough guide, so faded, gray and dotted. */
+.map__eddies path {
+  stroke: var(--text-soft);
+  stroke-opacity: 0.45;
+}
+
+/* Dotted shafts (eddies and the cove mouth's flood or ebb); their heads stay solid. */
+.map__dotted { stroke-dasharray: 0.1 9; }
+
+/* In the key's small samples, the dots are closer together. */
+.map__key .map__dotted { stroke-dasharray: 0.1 4; }
+
+/* Two key entries side by side (COVE map, SFBOFS arrows). */
+.map__key-pair {
+  display: flex;
+  gap: 10px;
+}

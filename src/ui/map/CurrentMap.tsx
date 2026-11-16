@@ -1,24 +1,37 @@
-// The cove on a dark, detailed basemap (OpenStreetMap layers from coveShapes.ts), with
-// straight arrows for the current at the selected time.
+// The COVE map: the cove on a dark, detailed basemap (OpenStreetMap layers from
+// coveShapes.ts), with arrows for the current at the selected time. The map is rotated 17°
+// so the Golden Gate's flood/ebb axis is horizontal: floods run right (into the bay),
+// ebbs left (out the Golden Gate).
 //
-// The map is rotated 17° so the flood/ebb axis is horizontal: flood arrows point
-// right (into the bay), ebb arrows point left (out the Golden Gate).
-//
-// Arrow positions come from scripts/cove-map/arrows.py (arrowLayout.ts), which checks
-// that every arrow stays over water.
-// Two kinds of arrows:
-// - Solid straight arrows, in open water and (thinner) in the cove: the data. They point
-//   east on a flood and west on an ebb, and their length ∝ speed (1 kt key).
-// - Dotted curving "eddy" arrows in the cove, like the back-eddy arrows in the Dolphin
-//   Club guide: an estimate of how water circulates. They grow with speed, but not on
-//   the 1 kt scale (see MIN_CURVE_FRACTION).
+// The arrows come from the same source as the current tiles (see App.tsx):
+// - NOAA's SFBOFS model, when it covers the day (the model's values blended between its
+//   hours): one arrow per model point (coveModelArrows.ts). In open water they're solid
+//   and colored by speed band (speedBands.ts); in the cove and the harbor they're the
+//   eddies, faded, gray and dotted. Dotted arrows in the cove, colored by speed, show
+//   the flood or ebb at the cove's mouth: the tiles' number, in the direction the model
+//   gives there; a ◆ at slack.
+// - Otherwise NOAA's Alcatraz SW prediction, at fixed spots from scripts/cove-map/arrows.py
+//   (arrowLayout.ts): solid straight arrows in open water and (thinner) in the cove,
+//   right on a flood and left on an ebb, length ∝ speed (1 kt key); dotted curving eddy
+//   arrows in the cove, like the back-eddy arrows in the Dolphin Club guide, growing
+//   with speed but not on the 1 kt scale (see MIN_CURVE_FRACTION).
 // While the current is still loading (phase null), the cove is drawn without arrows.
 
+import { useMemo } from 'react'
 import type { ReactNode } from 'react'
+import type { CurrentField, CurrentSnapshot } from '../../domain/currentField'
+import { currentFieldAt } from '../../domain/currentField'
+import { mouthVector, mouthWeights } from '../../domain/coveCurrent'
 import type { CurrentPhase } from '../../domain/types'
 import { useElementWidth } from '../charts/useElementWidth'
 import { SOURCE_PAGES } from '../sourcePages'
+import type { CurrentSource } from '../sourcePages'
 import { COVE_CURVES, COVE_STRAIGHT_ARROWS, OPEN_WATER_ARROWS } from './arrowLayout'
+import { COVE_ARROW_LENGTH, coveModelArrows } from './coveModelArrows'
+import type { CoveArrow } from './coveModelArrows'
+import { toMapVector } from './projection'
+import { arrowParts, arrowPath, bandColor } from './speedBands'
+import { SpeedStrip } from './SpeedStrip'
 import {
   BEACH,
   BREAKWATERS,
@@ -51,16 +64,66 @@ const MAX_DRAWN_KT = 1.6
 const MIN_CURVE_FRACTION = 0.3
 const MAX_CURVE_FRACTION = 0.75
 
+// SFBOFS arrows, in map units (about meters).
+/** The head of a model arrow: its strokes go this far back from the tip. */
+const MODEL_HEAD = 24
+const MODEL_LINE_WIDTH = 6
+/**
+ * The cove's flood/ebb arrows grow with the speed at the cove's mouth:
+ *   length = 60 + 60 × min(speed, MAX_DRAWN_KT) / MAX_DRAWN_KT
+ */
+const MOUTH_ARROW_BASE = 60
 
 /** `phase` is null while the current is still loading: the map is drawn without arrows. */
 type Props = {
+  /** The tiles' current (cove mouth or Alcatraz SW, see currentSource). */
   phase: CurrentPhase | null
   speedKt: number
+  /** The SFBOFS model's field around the selected time; null while loading or without data. */
+  field: CurrentField | null
+  time: Date
+  currentSource: CurrentSource
   controls: ReactNode // the COVE / BAY buttons, drawn over the map
 }
 
-export function CurrentMap({ phase, speedKt, controls }: Props) {
+export function CurrentMap({ phase, speedKt, field, time, currentSource, controls }: Props) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
+
+  // The SFBOFS model at this moment, when it's the source.
+  const timeMs = time.getTime()
+  const snapshot = useMemo(() => {
+    if (field === null || currentSource !== 'sfbofs') return null
+    return currentFieldAt(field, new Date(timeMs))
+  }, [field, timeMs, currentSource])
+  const modelArrows = useMemo(() => {
+    if (field === null || snapshot === null) return null
+    return coveModelArrows(field.points, snapshot)
+  }, [field, snapshot])
+  const mouthDirection = useMemo(() => {
+    if (field === null || snapshot === null) return null
+    const vector = mouthVector(snapshot, mouthWeights(field.points))
+    if (vector === null) return null
+    const speed = Math.hypot(vector.east, vector.north)
+    if (speed === 0) return null
+    return toMapVector(vector.east / speed, vector.north / speed)
+  }, [field, snapshot])
+
+  if (field !== null && snapshot !== null && modelArrows !== null) {
+    return (
+      <div className="map" ref={ref}>
+        <svg className="map__svg" viewBox={`${VIEW_X} 0 ${VIEW_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label={mapDescription(phase, speedKt)}>
+          <Basemap />
+          <ModelArrows arrows={modelArrows} />
+          <MouthArrows phase={phase} speedKt={speedKt} direction={mouthDirection} />
+          <ClubsLabel width={width} />
+        </svg>
+        <p className="map__credit">© OpenStreetMap contributors</p>
+        {controls}
+        <NorthArrow />
+        <ModelKey phase={phase} speedKt={speedKt} snapshot={snapshot} />
+      </div>
+    )
+  }
 
   // How many map units one screen pixel covers, so text and the key stay a fixed
   // pixel size whatever the map's width:  units = pixels × (VIEW_WIDTH / width)
@@ -81,20 +144,7 @@ export function CurrentMap({ phase, speedKt, controls }: Props) {
         role="img"
         aria-label={mapDescription(phase, speedKt)}
       >
-        <rect x={VIEW_X} y={0} width={VIEW_WIDTH} height={MAP_HEIGHT} className="map__water" />
-        <path d={LAND} className="map__land" />
-        <path d={PARKS} className="map__park" />
-        <path d={BEACH} className="map__beach" />
-        <path d={ROADS.pedestrian} className="map__road" strokeWidth={2} />
-        <path d={ROADS.residential} className="map__road" strokeWidth={3} />
-        <path d={ROADS.unclassified} className="map__road" strokeWidth={3} />
-        <path d={ROADS.tertiary} className="map__road" strokeWidth={4} />
-        <path d={ROADS.secondary} className="map__road" strokeWidth={6} />
-        <path d={ROADS.primary} className="map__road" strokeWidth={7} />
-        <path d={BUILDINGS} className="map__building" />
-        <path d={PIERS} className="map__pier" />
-        <path d={DOCKS} className="map__dock" />
-        <path d={BREAKWATERS} className="map__breakwater" />
+        <Basemap />
 
         {showArrows && (
           <g>
@@ -143,21 +193,7 @@ export function CurrentMap({ phase, speedKt, controls }: Props) {
           </g>
         )}
 
-        {width > 0 && (
-          // Two short lines to the right of the clubs, so it fits even on a phone.
-          <text
-            x={CLUBS.southEnd.x + 14}
-            y={CLUBS.southEnd.y + 22}
-            className="map__label"
-            fontSize={12 * unitsPerPixel}
-            strokeWidth={4 * unitsPerPixel}
-          >
-            <tspan>Dolphin Club</tspan>
-            <tspan x={CLUBS.southEnd.x + 14} dy={14 * unitsPerPixel}>
-              South End
-            </tspan>
-          </text>
-        )}
+        <ClubsLabel width={width} />
       </svg>
 
       {/* OpenStreetMap's license asks for this credit wherever the map is shown. */}
@@ -184,6 +220,165 @@ export function CurrentMap({ phase, speedKt, controls }: Props) {
           NOAA Alcatraz SW →
         </a>
       </div>
+    </div>
+  )
+}
+
+/** The basemap layers (OpenStreetMap), bottom to top. */
+function Basemap() {
+  return (
+    <>
+      <rect x={VIEW_X} y={0} width={VIEW_WIDTH} height={MAP_HEIGHT} className="map__water" />
+      <path d={LAND} className="map__land" />
+      <path d={PARKS} className="map__park" />
+      <path d={BEACH} className="map__beach" />
+      <path d={ROADS.pedestrian} className="map__road" strokeWidth={2} />
+      <path d={ROADS.residential} className="map__road" strokeWidth={3} />
+      <path d={ROADS.unclassified} className="map__road" strokeWidth={3} />
+      <path d={ROADS.tertiary} className="map__road" strokeWidth={4} />
+      <path d={ROADS.secondary} className="map__road" strokeWidth={6} />
+      <path d={ROADS.primary} className="map__road" strokeWidth={7} />
+      <path d={BUILDINGS} className="map__building" />
+      <path d={PIERS} className="map__pier" />
+      <path d={DOCKS} className="map__dock" />
+      <path d={BREAKWATERS} className="map__breakwater" />
+    </>
+  )
+}
+
+/**
+ * "Dolphin Club / South End" in two short lines to the right of the clubs, so it fits
+ * even on a phone; a fixed pixel size:  units = pixels × (VIEW_WIDTH / width)
+ */
+function ClubsLabel({ width }: { width: number }) {
+  if (width <= 0) return null
+  const unitsPerPixel = VIEW_WIDTH / width
+  return (
+    <text
+      x={CLUBS.southEnd.x + 14}
+      y={CLUBS.southEnd.y + 22}
+      className="map__label"
+      fontSize={12 * unitsPerPixel}
+      strokeWidth={4 * unitsPerPixel}
+    >
+      <tspan>Dolphin Club</tspan>
+      <tspan x={CLUBS.southEnd.x + 14} dy={14 * unitsPerPixel}>
+        South End
+      </tspan>
+    </text>
+  )
+}
+
+/** The SFBOFS model's arrows: solid and colored in open water, faded gray dotted eddies in sheltered water. */
+function ModelArrows({ arrows }: { arrows: CoveArrow[] }) {
+  const open = arrows.filter((arrow) => !arrow.sheltered)
+  const eddies = arrows.filter((arrow) => arrow.sheltered)
+  return (
+    <g strokeWidth={MODEL_LINE_WIDTH}>
+      <g className="map__model-arrows">
+        {open.map((arrow) => (
+          <path
+            key={`${arrow.x},${arrow.y}`}
+            d={arrowPath(arrow.x, arrow.y, arrow.ux, arrow.uy, COVE_ARROW_LENGTH, MODEL_HEAD)}
+            stroke={bandColor(arrow.speedKt)}
+          />
+        ))}
+      </g>
+      <g className="map__model-arrows map__eddies">
+        {eddies.map((arrow) => (
+          <DottedArrow key={`${arrow.x},${arrow.y}`} parts={arrowParts(arrow.x, arrow.y, arrow.ux, arrow.uy, COVE_ARROW_LENGTH, MODEL_HEAD)} />
+        ))}
+      </g>
+    </g>
+  )
+}
+
+/** A dotted shaft with a solid head (the shaft gets the dots: .map__dotted in map.css). */
+function DottedArrow({ parts }: { parts: { shaft: string; head: string } }) {
+  return (
+    <>
+      <path d={parts.shaft} className="map__dotted" />
+      <path d={parts.head} />
+    </>
+  )
+}
+
+type MouthArrowsProps = {
+  phase: CurrentPhase | null
+  speedKt: number
+  direction: { x: number; y: number } | null // the current's direction at the cove's mouth (map units)
+}
+
+/**
+ * The flood or ebb at the cove's mouth, drawn in the cove: dotted arrows at fixed spots,
+ * pointing the way the model's current runs at the mouth and colored by the tiles'
+ * speed; a ◆ at each spot at slack.
+ *   length = MOUTH_ARROW_BASE × (1 + min(speed, MAX_DRAWN_KT) / MAX_DRAWN_KT)
+ */
+function MouthArrows({ phase, speedKt, direction }: MouthArrowsProps) {
+  if (phase === null) return null
+  if (phase === 'slack') {
+    return (
+      <g>
+        {COVE_STRAIGHT_ARROWS.map((spot) => (
+          <SlackDiamond key={`${spot.x},${spot.y}`} x={spot.x} y={spot.y} halfSize={7} />
+        ))}
+      </g>
+    )
+  }
+  if (direction === null) return null
+  const drawnKt = Math.min(speedKt, MAX_DRAWN_KT)
+  const length = MOUTH_ARROW_BASE * (1 + drawnKt / MAX_DRAWN_KT)
+  return (
+    <g className="map__model-arrows map__mouth-arrows" stroke={bandColor(speedKt)} strokeWidth={MODEL_LINE_WIDTH}>
+      {COVE_STRAIGHT_ARROWS.map((spot) => (
+        <DottedArrow key={`${spot.x},${spot.y}`} parts={arrowParts(spot.x, spot.y, direction.x, direction.y, length, MODEL_HEAD)} />
+      ))}
+    </g>
+  )
+}
+
+type ModelKeyProps = { phase: CurrentPhase | null; speedKt: number; snapshot: CurrentSnapshot }
+
+/**
+ * The key for the SFBOFS arrows: the speed bands' color strip; the cove's dotted
+ * flood/ebb arrows with the mouth's speed (the tiles' number) and the eddies, side by
+ * side; and a link to NOAA's SFBOFS current maps that says when the hour is a forecast.
+ */
+function ModelKey({ phase, speedKt, snapshot }: ModelKeyProps) {
+  let mouth = 'loading'
+  if (phase === 'slack') mouth = 'slack'
+  else if (phase !== null) mouth = `${phase} ${speedKt.toFixed(1)} kt`
+  let source = 'SFBOFS'
+  if (snapshot.kind === 'forecast') source = 'SFBOFS forecast'
+  let color = bandColor(0)
+  if (phase === 'flood' || phase === 'ebb') color = bandColor(speedKt)
+  return (
+    <div className="map__key mono">
+      <span>Current speed (kt)</span>
+      <SpeedStrip />
+      {/* Both dotted kinds on one line, so the key stays small on a phone. */}
+      <span className="map__key-pair">
+        <span className="map__key-row">
+          <svg width={22} height={10} aria-hidden="true">
+            <g className="map__model-arrows map__mouth-arrows" stroke={color} strokeWidth={2}>
+              <DottedArrow parts={arrowParts(11, 5, 1, 0, 18, 5)} />
+            </g>
+          </svg>
+          {mouth}
+        </span>
+        <span className="map__key-row">
+          <svg width={22} height={10} aria-hidden="true">
+            <g className="map__model-arrows map__eddies" strokeWidth={2}>
+              <DottedArrow parts={arrowParts(11, 5, 1, 0, 18, 5)} />
+            </g>
+          </svg>
+          eddies
+        </span>
+      </span>
+      <a className="map__key-source" href={SOURCE_PAGES.sfbofsCurrents}>
+        {source} →
+      </a>
     </div>
   )
 }

@@ -1,10 +1,13 @@
 // The grid of numbers under the map: current (state), speed, next slack and tide. Each
-// tile ends with a link to the NOAA station its numbers come from (marked on the map too).
+// tile ends with a link to where its numbers come from: for the current, NOAA's SFBOFS
+// model at the cove's mouth when it covers the day, otherwise NOAA's Alcatraz SW
+// prediction; for the tide, NOAA's Pier 41 station.
 
 import type { Conditions, CurrentPhase } from '../domain/types'
 import { formatCountdown, formatRelativeDay, formatTime, formatTimeParts } from '../time/format'
 import { SourceLink } from './SourceLink'
 import { SOURCE_PAGES } from './sourcePages'
+import type { CurrentSource } from './sourcePages'
 import { StateGlyph } from './StateGlyph'
 import './panels.css'
 
@@ -21,8 +24,10 @@ const PHASE_WORDS: Record<CurrentPhase, string> = {
 // Every tile always has the same lines, and no line wraps, so tiles keep their shape
 // whatever the time or the numbers. Lines are sized for their longest text
 // (e.g. "12:47 AM tomorrow").
-export function Panels({ conditions }: { conditions: Conditions | null }) {
-  if (conditions === null) return <LoadingPanels />
+type PanelsProps = { conditions: Conditions | null; currentSource: CurrentSource }
+
+export function Panels({ conditions, currentSource }: PanelsProps) {
+  if (conditions === null) return <LoadingPanels currentSource={currentSource} />
   const { at, current, tide } = conditions
   const nextTide = tide.next
 
@@ -39,7 +44,7 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
             others. */}
         <p className="panel__state-words panel__line">{PHASE_WORDS[current.phase]}</p>
         <p className="panel__state-words panel__line">{'\u00a0'}</p>
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
 
       <section className="panel">
@@ -56,13 +61,13 @@ export function Panels({ conditions }: { conditions: Conditions | null }) {
               longest "12:47 AM tomorrow" wouldn't fit. */}
           {current.cycleMax === null ? '\u00a0' : formatTime(current.cycleMax.time)}
         </p>
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
 
       <section className="panel panel--wide">
         <h2 className="label">Next slack</h2>
         <NextSlack at={at} conditions={conditions} />
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
 
       <section className="panel panel--wide">
@@ -133,7 +138,7 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
  * "--" and gently pulse, so the page has its final shape from the start and each tile
  * just fills in.
  */
-function LoadingPanels() {
+function LoadingPanels({ currentSource }: { currentSource: CurrentSource }) {
   const empty = '\u00a0'
   return (
     <div className="panels">
@@ -142,21 +147,21 @@ function LoadingPanels() {
         <div className="panel__glyph" />
         <p className="panel__state-words panel__line is-loading">--</p>
         <p className="panel__state-words panel__line">{empty}</p>
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
       <section className="panel">
         <h2 className="label">Speed</h2>
         <p className="panel__big panel__line mono is-loading">--</p>
         <p className="panel__detail panel__line">{empty}</p>
         <p className="panel__detail panel__line">{empty}</p>
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
       <section className="panel panel--wide">
         <h2 className="label">Next slack</h2>
         <p className="panel__big panel__line mono is-loading">--:--</p>
         <p className="panel__detail panel__line">{empty}</p>
         <p className="panel__detail panel__line">{empty}</p>
-        <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
+        <CurrentSourceLink source={currentSource} />
       </section>
       <section className="panel panel--wide">
         <h2 className="label">Tide</h2>
@@ -167,4 +172,10 @@ function LoadingPanels() {
       </section>
     </div>
   )
+}
+
+/** The current tiles' source link: SFBOFS at the cove's mouth, or the Alcatraz SW prediction. */
+function CurrentSourceLink({ source }: { source: CurrentSource }) {
+  if (source === 'sfbofs') return <SourceLink href={SOURCE_PAGES.sfbofsCurrents}>NOAA SFBOFS</SourceLink>
+  return <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>
 }
