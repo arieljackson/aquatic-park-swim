@@ -1,4 +1,4 @@
-// The bay model's surface current around the cove: one value per mesh point per hour
+// The SFBOFS model's surface current around the cove: one value per mesh point per hour
 // (from /api/currents, NOAA's SFBOFS model), and the current at any moment in between.
 
 export type CurrentFieldHour = {

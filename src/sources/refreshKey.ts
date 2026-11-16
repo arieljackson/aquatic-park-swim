@@ -2,7 +2,7 @@
 //
 // A past or future day's data doesn't change (or changes too rarely to matter), so it's
 // cached by day: "2026-11-10". Today's keeps growing: new measurements arrive every hour
-// and the bay model runs every 6 hours. So today's key also has the current Pacific hour,
+// and the SFBOFS model runs every 6 hours. So today's key also has the current Pacific hour,
 // "2026-11-10 14h", and changes each hour: the hooks then load the day again.
 
 import { pacificDateString, toPacific } from '../time/pacific'

@@ -126,3 +126,81 @@
     overflow: hidden;
   }
 }
+
+/* ------------------------------------------------------------- BAY map (WideMap.tsx) */
+
+.map__bridge {
+  fill: none;
+  stroke: #59646c;
+  stroke-linecap: butt;
+}
+.map__tower { fill: #7a868f; }
+
+.map__label--place { fill: var(--label); }
+
+/* The NOAA stations the tiles use. */
+.map__station {
+  fill: none;
+  stroke: var(--text);
+}
+
+/* The SFBOFS model's arrows: lines with an open head; each arrow's color (its speed band)
+   is set on the arrow. */
+.map__wide-arrows path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The BAY map's key: a color strip of the speed bands, with each boundary's speed
+   centered under it. */
+.map__key-strip { display: block; }
+.map__key-tick {
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+/* Both keys end with a link to where their arrows come from. */
+.map__key-source {
+  font-family: var(--sans);
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+/* ------------------------------------------------------------- COVE / BAY buttons */
+
+.map__views {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(13, 19, 23, 0.85);
+}
+
+.map__views button {
+  margin: 0;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.map__views button + button { border-left: 1px solid var(--line-strong); }
+
+.map__views button[aria-pressed='true'] {
+  color: var(--page);
+  background: var(--text-soft);
+}
+
+.map__views button:focus-visible {
+  outline: 2px solid var(--now);
+  outline-offset: -2px;
+}

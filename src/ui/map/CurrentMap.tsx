@@ -14,8 +14,10 @@
 //   the 1 kt scale (see MIN_CURVE_FRACTION).
 // While the current is still loading (phase null), the cove is drawn without arrows.
 
+import type { ReactNode } from 'react'
 import type { CurrentPhase } from '../../domain/types'
 import { useElementWidth } from '../charts/useElementWidth'
+import { SOURCE_PAGES } from '../sourcePages'
 import { COVE_CURVES, COVE_STRAIGHT_ARROWS, OPEN_WATER_ARROWS } from './arrowLayout'
 import {
   BEACH,
@@ -51,9 +53,13 @@ const MAX_CURVE_FRACTION = 0.75
 
 
 /** `phase` is null while the current is still loading: the map is drawn without arrows. */
-type Props = { phase: CurrentPhase | null; speedKt: number }
+type Props = {
+  phase: CurrentPhase | null
+  speedKt: number
+  controls: ReactNode // the COVE / BAY buttons, drawn over the map
+}
 
-export function CurrentMap({ phase, speedKt }: Props) {
+export function CurrentMap({ phase, speedKt, controls }: Props) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
 
   // How many map units one screen pixel covers, so text and the key stay a fixed
@@ -156,21 +162,28 @@ export function CurrentMap({ phase, speedKt }: Props) {
 
       {/* OpenStreetMap's license asks for this credit wherever the map is shown. */}
       <p className="map__credit">© OpenStreetMap contributors</p>
+      {controls}
       <NorthArrow />
-      {phase === null && <p className="map__key mono is-loading">LOADING CURRENT…</p>}
-      {showArrows && (
-        <div className="map__key mono">
-          <span className="map__key-row">
-            <KeyArrow lengthPx={keyLengthPx} light={false} />1 kt
-          </span>
-          <span className="map__key-row">
-            {/* Eddy arrows aren't on the 1 kt scale, so this sample isn't to scale. */}
-            <KeyArrow lengthPx={keyLengthPx} light={true} />
-            cove movement (est)
-          </span>
-        </div>
-      )}
-      {showSlack && <p className="map__key mono">SLACK · little or no current</p>}
+      {/* The key, ending with a link to the prediction the arrows come from. */}
+      <div className="map__key mono">
+        {phase === null && <span className="is-loading">LOADING CURRENT…</span>}
+        {showArrows && (
+          <>
+            <span className="map__key-row">
+              <KeyArrow lengthPx={keyLengthPx} light={false} />1 kt
+            </span>
+            <span className="map__key-row">
+              {/* Eddy arrows aren't on the 1 kt scale, so this sample isn't to scale. */}
+              <KeyArrow lengthPx={keyLengthPx} light={true} />
+              cove eddies
+            </span>
+          </>
+        )}
+        {showSlack && <span>SLACK · little or no current</span>}
+        <a className="map__key-source" href={SOURCE_PAGES.alcatrazCurrent}>
+          NOAA Alcatraz SW →
+        </a>
+      </div>
     </div>
   )
 }
@@ -334,12 +347,12 @@ function KeyArrow({ lengthPx, light }: { lengthPx: number; light: boolean }) {
   )
 }
 
-/** North is MAP_ROTATION_DEG to the left of up, because the map is turned clockwise. */
+/** North is MAP_ROTATION_DEG to the right of up, because the map is turned clockwise. */
 function NorthArrow() {
   return (
     <div className="map__north">
-      <svg width={20} height={20} viewBox="0 0 20 20" role="img" aria-label={`North, ${MAP_ROTATION_DEG}° left of up`}>
-        <g transform={`rotate(${-MAP_ROTATION_DEG} 10 10)`}>
+      <svg width={20} height={20} viewBox="0 0 20 20" role="img" aria-label={`North, ${MAP_ROTATION_DEG}° right of up`}>
+        <g transform={`rotate(${MAP_ROTATION_DEG} 10 10)`}>
           <path d="M10 2 L14 15 L10 12 L6 15 Z" fill="currentColor" />
         </g>
       </svg>

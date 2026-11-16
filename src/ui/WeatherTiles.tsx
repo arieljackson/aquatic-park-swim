@@ -72,7 +72,7 @@ export function WeatherTiles({ time }: { time: Date }) {
     windSource = <SourceLink href={SOURCE_PAGES.nwsForecast}>NWS forecast</SourceLink>
   }
 
-  // Water: NOAA's bay model, about a month back to about 2 days ahead.
+  // Water: NOAA's SFBOFS model, about a month back to about 2 days ahead.
   let waterText = '--°F'
   let waterDetail = 'Loading…'
   if (water.error !== null) {
@@ -142,7 +142,7 @@ export function WeatherTiles({ time }: { time: Date }) {
         <h2 className="label">Water temp</h2>
         <p className={`temp__value mono${pulse(waterLoading)}`}>{waterText}</p>
         <p className="temp__detail">{waterDetail}</p>
-        <SourceLink href={SOURCE_PAGES.bayModel}>NOAA bay model</SourceLink>
+        <SourceLink href={SOURCE_PAGES.bayModel}>NOAA SFBOFS</SourceLink>
       </section>
       <section className="temp">
         <h2 className="label">Wind</h2>

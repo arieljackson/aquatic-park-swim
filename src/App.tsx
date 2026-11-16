@@ -28,7 +28,7 @@ import { useElementWidth } from './ui/charts/useElementWidth'
 import { dayAxis } from './ui/dayAxis'
 import { DebugTables } from './ui/DebugTables'
 import { Header } from './ui/Header'
-import { CurrentMap } from './ui/map/CurrentMap'
+import { MapPanel } from './ui/map/MapPanel'
 import { Panels } from './ui/Panels'
 import { TimeSlider } from './ui/TimeSlider'
 import { useIsWide } from './ui/useIsWide'
@@ -54,7 +54,8 @@ function App() {
         {/* Everything is drawn from the start and fills in as its data arrives: the map
             without arrows, the tiles with "--", the charts as empty boxes. */}
         <div className="layout__map">
-          <CurrentMap
+          <MapPanel
+            time={selected.time}
             phase={conditions === null ? null : conditions.current.phase}
             speedKt={conditions === null ? 0 : conditions.current.speedKt}
           />

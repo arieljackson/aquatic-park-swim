@@ -1,5 +1,5 @@
 // Water temperature near the cove, from our own /api/water-temp (see api/water-temp.ts):
-// NOAA's bay model (SFBOFS) at North Point, Pier 41, surface, hourly. A model estimate:
+// NOAA's SFBOFS model at North Point, Pier 41, surface, hourly. A model estimate:
 // no sensor measures the cove. It covers about the last month, up to about 2 days ahead.
 //
 // Loaded for the selected San Francisco day and cached by day, like the predictions.

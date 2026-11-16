@@ -15,8 +15,10 @@ The NOAA tides are useful, but there are some adjustments to be made for both ti
 - **Next slack:** the time of the next high or low slack, a countdown, and the next
   slack of the other kind.
 - **Tide:** height, rising or falling, and the next high or low.
-- **Map:** arrows for the current outside the breakwater, and an estimate of how
-  water moves inside the cove.
+- **Map:** two views, picked with the COVE and BAY buttons. COVE: arrows for the
+  current outside the breakwater, and an estimate of how water moves inside the cove.
+  BAY: the Golden Gate Bridge to Pier 41 and Alcatraz, with NOAA's SFBOFS model
+  current, colored by speed in NOAA's speed bands, and the NOAA stations the tiles use.
 - **Air temp, water temp, wind and water quality:** see "Conditions" below for where
   each comes from.
 - **The day's tide, current and wind charts**, with a time slider to look at any moment.
@@ -53,7 +55,7 @@ The app uses NOAA's tide predictions for the Golden Gate, shifted to North Point
 |---|---|---|---|
 | Air temp | Measured at NOAA's Golden Gate station (9414290) | National Weather Service hourly forecast | ~7 days ahead |
 | Wind | Measured at 9414290, with gusts | NWS hourly forecast (no gusts) | ~7 days ahead |
-| Water temp | NOAA's San Francisco Bay model (SFBOFS) at Pier 41, surface | the same model's forecast | ~1 month back, ~2 days ahead |
+| Water temp | NOAA's SFBOFS model at Pier 41, surface | the same model's forecast | ~1 month back, ~2 days ahead |
 | Water quality | SFPUC's weekly bacteria sample at Aquatic Park (station 211), plus every other SFPUC station (bay shore and ocean beaches) sampled in the last 7 days | the latest samples | as far back as the data goes |
 
 - **Water temp is a model estimate:** no thermometer reports water temperature at the
@@ -86,22 +88,23 @@ Add `?debug` to the URL to see Golden Gate and Pier 41 tide times side
 by side, and `?t=2026-11-08T09:20` to open at a specific time (Pacific).
 
 No API keys are needed. The browser calls NOAA's tides and currents API, the National
-Weather Service and DataSF directly. The exceptions are NOAA's bay model (SFBOFS): its
+Weather Service and DataSF directly. The exceptions are NOAA's SFBOFS model: its
 server doesn't allow browser requests, so small server functions in `api/` run on Vercel
 and return just the numbers needed. `api/water-temp.ts` gives the water temperature
 (`/api/water-temp?day=2026-11-08`), and `api/currents.ts` gives the model's surface
-currents around the cove (`/api/currents?day=2026-11-08`), kept for a future map and not
-used by the page yet. `npm run dev` runs these functions locally (see `vite.config.ts`).
+currents for the BAY map (`/api/currents?day=2026-11-08`), loaded only once BAY is
+opened. `npm run dev` runs these functions locally (see `vite.config.ts`).
 
-The map is built from OpenStreetMap data by `scripts/cove-map/build.py`, and the
-current arrows are placed by `scripts/cove-map/arrows.py`. Both write TypeScript files
-in `src/ui/map/`; they only need re-running if the map or arrow layout changes.
+The COVE map is built from OpenStreetMap data by `scripts/cove-map/build.py`, and its
+current arrows are placed by `scripts/cove-map/arrows.py`. The BAY map is built by
+`scripts/wide-map/build.py`. All write TypeScript files in `src/ui/map/`; they only need
+re-running if a map or the arrow layout changes.
 
 ## Code layout
 
 ```
 api/        server code (Vercel Functions): water temperature and currents from NOAA's
-            bay model
+            SFBOFS model
 src/
   noaa/     the only code that knows NOAA's tides and currents API (predictions,
             measured air temperature and wind)
@@ -112,8 +115,9 @@ src/
             forecast, water temperature via api/, water quality from DataSF), and
             which value to show for a given time
   ui/       React components: header, map, tiles, charts, time slider
-scripts/cove-map/   builds the map shapes and arrow positions from OpenStreetMap
-scripts/sfbofs-mesh/  finds which of the bay model's mesh points api/currents.ts reads
+scripts/cove-map/   builds the COVE map shapes and arrow positions from OpenStreetMap
+scripts/wide-map/   builds the BAY map shapes from OpenStreetMap
+scripts/sfbofs-mesh/  finds which of the SFBOFS model's mesh points api/currents.ts reads
 ```
 
 ## Deploying
@@ -123,21 +127,31 @@ Vercel builds and deploys the site on every push to `main`. A GitHub Action also
 
 ## What's next / open thoughts
 
-- Big thought: tidal currents are really important, and it's hard to 
-figure out what to use for current, and how to overlay currents. I landed on Alcatraz SW because it was closest
-by distance, but the cove is its own beast. Also, if we want to extend this outside the cove, how do we deal with all the different currents? I'm wondering if there's a bigger more encompassing current model described somewhere that I could either call or implement myself.
+- Big thought: SFBOFS seems to be more accurate than Alcatraz SW and closer to the cove.
+But it is less granular.
 
-I am also thinking about this website: [SF Currents](https://l-36.com/sf_current_overview.php).
+- Station vs. SFBOFS model for the cove's current: the tiles use NOAA's Alcatraz SW
+  prediction, which comes from a 7-week current meter deployment there in 2012, about
+  1 km from the cove. No station is closer (North Point, Pier 35 is 1.4 km away, and the
+  nearest live current meters are in Oakland). A month of NOAA's SFBOFS model (Oct
+  18 – Nov 17, 2026) just outside the cove's opening compared with the stations:
+  - The flood starts about 35–40 min earlier at the cove than either Alcatraz SW or
+    Pier 35 predicts; the ebb starts at about the same time.
+  - Ebbs at the cove are weak: about a third of Alcatraz SW's speed. Floods are about
+    0.85×. Pier 35 overstates the cove's speeds 2–4×.
+  - At each station's own spot the model matches NOAA's prediction closely, so it seems
+    trustworthy here.
+  - The issue is that SFBOFS only sends data once per hour, so I'm not sure how this affects the next slack and future predictions. May be a non-issue or still more accurate than Alcatraz SW. Or could we do a combo - SFBOFS for lookback and next two days, then an adjusted Alcatraz SW? 
 
-- Another big thought: wind is really important too. Wind creates currents as well, and I want it represented better on the map. But again, something like [windfinder](https://www.windfinder.com/#12/37.8267/-122.3853/2026-11-10T21:00Z/report) does an amazing job at this. 
+- I am also thinking about this website: [SF Currents](https://l-36.com/sf_current_overview.php).
+- Another big thought: wind is really important too. Wind is included in SFBOFS current calculations I think, but maybe a wind layer on the map would be nice. But again, something like [windfinder](https://www.windfinder.com/#12/37.8267/-122.3853/2026-11-10T21:00Z/report) does an amazing job at this. 
 
 **Other ideas.**
 
-- Widen the map beyond the cove (Crissy Field, China Beach, Alcatraz, etc.) Basically a full bay map with focus on swimming locations.
+- I widened the map, but only between Golden Gate / North Point. Do we want it wider / navigable / more landmarks?
 - Include a way to send suggestions or outreach.
-- Finetuning? The five data loaders repeat the same load, cache and ignore-stale-results pattern; one shared hook would remove the repetition.
+- Finetuning / code clean up?
 - The font size and styling could be improved. Font size too small?
-- Add NOAA stations and locations to map.
 - Can I get access to any hyper local weather data at the clubs themselves? 
 - Animal and incident reports
 
@@ -150,6 +164,9 @@ I am also thinking about this website: [SF Currents](https://l-36.com/sf_current
   of the bay: its surface temperature at North Point, Pier 41 (9414305), read from
   [NOAA's OPeNDAP server](https://opendap.co-ops.nos.noaa.gov/thredds/catalog/NOAA/SFBOFS/MODELS/catalog.html).
   A model estimate, not a measurement.
+- **Bay currents (BAY map):** the same model's surface currents from the Golden Gate
+  Bridge to Pier 41, from the same server, shown in NOAA's speed bands like its own
+  [SFBOFS current maps](https://tidesandcurrents.noaa.gov/ofs/ofs_mapplots.html?ofsregion=sfb&subdomain=en&model_type=currents_forecast).
 - **Air temperature and wind:** measured at [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290)
   station 9414290 for past times; forecast by the
   [National Weather Service](https://www.weather.gov/documentation/services-web-api)
@@ -180,6 +197,6 @@ I am also thinking about this website: [SF Currents](https://l-36.com/sf_current
 
 The code is under the [MIT License](LICENSE).
 
-The map shapes in `src/ui/map/coveShapes.ts` are derived from OpenStreetMap data and
+The map shapes in `src/ui/map/coveShapes.ts` and `src/ui/map/wideShapes.ts` are derived from OpenStreetMap data and
 are available under the [Open Database License](https://opendatacommons.org/licenses/odbl/)
 (ODbL). NOAA's predictions are a work of the U.S. government.

@@ -1,5 +1,5 @@
 """
-Finds which of the SFBOFS bay model's mesh elements lie around Aquatic Park.
+Finds which of the SFBOFS model's mesh elements lie around Aquatic Park.
 
   python3 scripts/sfbofs-mesh/find_range.py
 

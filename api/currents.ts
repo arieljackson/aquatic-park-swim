@@ -1,4 +1,4 @@
-// GET /api/currents: surface currents around Aquatic Park, on the bay model's mesh, as JSON.
+// GET /api/currents: surface currents around Aquatic Park, on the SFBOFS model's mesh, as JSON.
 //
 // A Vercel Function, like api/water-temp.ts, and for the same reason: NOAA's model server
 // doesn't allow browser requests (no CORS headers).
