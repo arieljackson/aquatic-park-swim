@@ -147,7 +147,6 @@ But it is less granular.
     0.85×. Pier 35 overstates the cove's speeds 2–4×.
   - At each station's own spot the model matches NOAA's prediction closely, so it seems
     trustworthy here.
-  - The issue is that SFBOFS only sends data once per hour, so I'm not sure how this affects the next slack and future predictions. May be a non-issue or still more accurate than Alcatraz SW. Or could we do a combo - SFBOFS for lookback and next two days, then an adjusted Alcatraz SW? 
   - Tested: rebuilding NOAA's 6-minute predictions from just their hourly values with a
     smooth curve lands about 0.004 kt off, with slack times within a minute, so hourly
     data looks like a non-issue. The app now does the combo without the adjustment:
@@ -164,6 +163,7 @@ But it is less granular.
 - The font size and styling could be improved. Font size too small?
 - Can I get access to any hyper local weather data at the clubs themselves? 
 - Animal and incident reports
+- iOS + android1.
 
 ## Credits
 

@@ -360,7 +360,7 @@ function ModelKey({ snapshot }: { snapshot: CurrentSnapshot }) {
       </a>
       {/* Ariel's wording. */}
       <p className="map__key-note">
-        * SFBOFS does not provide fine-grained current data for Aquatic Cove. Current is estimated from the opening.
+        SFBOFS does not provide fine-grained current data for Aquatic Cove. Current is estimated from the opening.
       </p>
     </div>
   )

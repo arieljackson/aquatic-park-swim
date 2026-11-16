@@ -109,9 +109,8 @@ function App() {
           </p>
           <p>
             SFBOFS models provide better data around Aquatic Cove than the fixed station locations. Around the
-            stations, SFBOFS values are very similar to station values, and SFBOFS adjust for the shore. Based on both
-            personal experience and historical analysis, the timing of SFBOFS slack is more accurate than Alcatraz SW
-            for the cove.
+            stations, SFBOFS values are very similar to station values. Based on both personal experience and
+            historical analysis, the timing of SFBOFS slack is more accurate than Alcatraz SW for the cove.
           </p>
         </div>
       </div>
