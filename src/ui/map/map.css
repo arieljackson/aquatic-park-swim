@@ -215,20 +215,26 @@
   stroke-linejoin: round;
 }
 
-/* Eddies, in the cove and the harbor: a rough guide, so faded, gray and dotted. */
+/* Eddies, in the cove and the harbor: a rough guide, so very faded, gray and dotted,
+   to keep them apart from the current arrows. */
 .map__eddies path {
   stroke: var(--text-soft);
-  stroke-opacity: 0.45;
+  stroke-opacity: 0.2;
 }
 
-/* Dotted shafts (eddies and the cove mouth's flood or ebb); their heads stay solid. */
+/* Dotted shafts (the eddies); their heads stay solid. */
 .map__dotted { stroke-dasharray: 0.1 9; }
 
-/* In the key's small samples, the dots are closer together. */
-.map__key .map__dotted { stroke-dasharray: 0.1 4; }
 
-/* Two key entries side by side (COVE map, SFBOFS arrows). */
-.map__key-pair {
-  display: flex;
-  gap: 10px;
+/* A note at the bottom of the COVE map's key, set off by a thin line; as wide as the
+   color strip (7 bands × 20px), so it wraps rather than widening the key. */
+.map__key-note {
+  max-width: 140px;
+  margin: 2px 0 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-strong);
+  font-family: var(--sans);
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--label);
 }

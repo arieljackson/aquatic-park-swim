@@ -1,6 +1,6 @@
 // The grid of numbers under the map: current (state), speed, next slack and tide. Each
 // tile ends with a link to where its numbers come from: for the current, NOAA's SFBOFS
-// model at the cove's mouth when it covers the day, otherwise NOAA's Alcatraz SW
+// model around the cove when it covers the day, otherwise NOAA's Alcatraz SW
 // prediction; for the tide, NOAA's Pier 41 station.
 
 import type { Conditions, CurrentPhase } from '../domain/types'
@@ -174,7 +174,7 @@ function LoadingPanels({ currentSource }: { currentSource: CurrentSource }) {
   )
 }
 
-/** The current tiles' source link: SFBOFS at the cove's mouth, or the Alcatraz SW prediction. */
+/** The current tiles' source link: SFBOFS around the cove, or the Alcatraz SW prediction. */
 function CurrentSourceLink({ source }: { source: CurrentSource }) {
   if (source === 'sfbofs') return <SourceLink href={SOURCE_PAGES.sfbofsCurrents}>NOAA SFBOFS</SourceLink>
   return <SourceLink href={SOURCE_PAGES.alcatrazCurrent}>NOAA Alcatraz SW</SourceLink>

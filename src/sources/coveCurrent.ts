@@ -1,4 +1,4 @@
-// The current at Aquatic Park cove's mouth from NOAA's SFBOFS model (domain/coveCurrent.ts),
+// The current around Aquatic Park cove from NOAA's SFBOFS model (domain/coveCurrent.ts),
 // for the selected day. The day before and the day after are loaded too, so the next
 // slack after midnight and the peak of a flood or ebb that started the day before are
 // known.
@@ -14,7 +14,7 @@ import { useCurrentField } from './currentField'
 export type CoveCurrent = {
   /** The SFBOFS model's field for the three days, merged; null while the selected day loads or without data. */
   field: CurrentField | null
-  /** The cove mouth's current over those days; null while loading or without model data. */
+  /** The cove's current over those days; null while loading or without model data. */
   data: CurrentData | null
 }
 

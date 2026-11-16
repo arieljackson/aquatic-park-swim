@@ -15,8 +15,9 @@ The NOAA tides are useful, but there are some adjustments to be made for both ti
 - **Next slack:** the time of the next high or low slack, a countdown, and the next
   slack of the other kind.
 - **Tide:** height, rising or falling, and the next high or low.
-- **Map:** two views, picked with the COVE and BAY buttons. COVE: arrows for the
-  current outside the breakwater, and an estimate of how water moves inside the cove.
+- **Map:** two views, picked with the COVE and BAY buttons. COVE: NOAA's SFBOFS model
+  arrows in open water around the cove, faint arrows for the eddies inside the cove and
+  the harbor, and the cove's flood or ebb (the same number as the tiles).
   BAY: the Golden Gate Bridge to Pier 41 and Alcatraz, with NOAA's SFBOFS model
   current, colored by speed in NOAA's speed bands, and the NOAA stations the tiles use.
 - **Air temp, water temp, wind and water quality:** see "Conditions" below for where
@@ -30,17 +31,23 @@ All times are Pacific Time. Wind is in mph; the current is in knots.
 
 ## Where the numbers come from
 
-The app uses NOAA's tide predictions for the Golden Gate, shifted to North Point, Pier 41 (next to the cove) with NOAA's own offsets, and NOAA's current predictions for Alcatraz SW, the nearest current station. I started with a rough rule of thumb from an old Dolphin Club guide, then switched to NOAA's numbers.
+The app uses NOAA's tide predictions for the Golden Gate, shifted to North Point, Pier 41 (next to the cove) with NOAA's own offsets, and NOAA's SFBOFS model for the current around the cove, with NOAA's current predictions for Alcatraz SW, the nearest current station, where the model has no data. I started with a rough rule of thumb from an old Dolphin Club guide, then switched to NOAA's numbers.
 
 | | Time | Speed / height |
 |---|---|---|
-| Current | as NOAA predicts it at Alcatraz SW | as predicted |
+| Current | SFBOFS around the cove (about a month back to 2 days ahead); otherwise as NOAA predicts it at Alcatraz SW | as modeled / predicted |
 | Tide | highs 13 min and lows 11 min later than the Golden Gate | highs 0.2 ft higher, lows unchanged |
 
 - Tide: NOAA station 9414290, San Francisco (Golden Gate), moved to North Point, Pier 41
   (9414305, 0.8 km from the cove) with NOAA's own offsets for Pier 41. NOAA gives Pier 41
   only highs and lows, so between them the app blends the two offsets.
-- Current: NOAA station SFB1204, Alcatraz SW ("Alcatraz Island, southwest of" in NOAA's
+- Current: NOAA's SFBOFS model, the average of its surface current over the open water
+  the COVE map shows (about 21 model points; not the cove or the harbor, where the model
+  has no piers). The model gives one value per hour; the app fills in every 6 minutes
+  along a smooth curve through the hours (tested on NOAA's 6-minute predictions: about
+  0.004 kt off, slack times within a minute). Used whenever the model covers the whole
+  day; each current tile's source link says which source is in use.
+- Current where SFBOFS has no data: NOAA station SFB1204, Alcatraz SW ("Alcatraz Island, southwest of" in NOAA's
   list), 2 ft below the surface (bin 18): the nearest current station, about 1.1 km from the cove. Chosen over North
   Point, Pier 35 (SFB1205, 1.4 km east along the waterfront; not the same spot as the Pier 41
   tide station): the two have nearly the same slack times (within ~2 min), but Alcatraz SW
@@ -92,8 +99,7 @@ Weather Service and DataSF directly. The exceptions are NOAA's SFBOFS model: its
 server doesn't allow browser requests, so small server functions in `api/` run on Vercel
 and return just the numbers needed. `api/water-temp.ts` gives the water temperature
 (`/api/water-temp?day=2026-11-08`), and `api/currents.ts` gives the model's surface
-currents for the BAY map (`/api/currents?day=2026-11-08`), loaded only once BAY is
-opened. `npm run dev` runs these functions locally (see `vite.config.ts`).
+currents for both maps and the current tiles (`/api/currents?day=2026-11-08`). `npm run dev` runs these functions locally (see `vite.config.ts`).
 
 The COVE map is built from OpenStreetMap data by `scripts/cove-map/build.py`, and its
 current arrows are placed by `scripts/cove-map/arrows.py`. The BAY map is built by
@@ -130,8 +136,8 @@ Vercel builds and deploys the site on every push to `main`. A GitHub Action also
 - Big thought: SFBOFS seems to be more accurate than Alcatraz SW and closer to the cove.
 But it is less granular.
 
-- Station vs. SFBOFS model for the cove's current: the tiles use NOAA's Alcatraz SW
-  prediction, which comes from a 7-week current meter deployment there in 2012, about
+- Station vs. SFBOFS model for the cove's current (the tiles now use SFBOFS, with Alcatraz
+  SW where the model has no data): Alcatraz SW's prediction comes from a 7-week current meter deployment there in 2012, about
   1 km from the cove. No station is closer (North Point, Pier 35 is 1.4 km away, and the
   nearest live current meters are in Oakland). A month of NOAA's SFBOFS model (Oct
   18 – Nov 17, 2026) just outside the cove's opening compared with the stations:
@@ -142,6 +148,10 @@ But it is less granular.
   - At each station's own spot the model matches NOAA's prediction closely, so it seems
     trustworthy here.
   - The issue is that SFBOFS only sends data once per hour, so I'm not sure how this affects the next slack and future predictions. May be a non-issue or still more accurate than Alcatraz SW. Or could we do a combo - SFBOFS for lookback and next two days, then an adjusted Alcatraz SW? 
+  - Tested: rebuilding NOAA's 6-minute predictions from just their hourly values with a
+    smooth curve lands about 0.004 kt off, with slack times within a minute, so hourly
+    data looks like a non-issue. The app now does the combo without the adjustment:
+    SFBOFS where it has data (about a month back to 2 days ahead), Alcatraz SW after.
 
 - I am also thinking about this website: [SF Currents](https://l-36.com/sf_current_overview.php).
 - Another big thought: wind is really important too. Wind is included in SFBOFS current calculations I think, but maybe a wind layer on the map would be nice. But again, something like [windfinder](https://www.windfinder.com/#12/37.8267/-122.3853/2026-11-10T21:00Z/report) does an amazing job at this. 
@@ -164,8 +174,8 @@ But it is less granular.
   of the bay: its surface temperature at North Point, Pier 41 (9414305), read from
   [NOAA's OPeNDAP server](https://opendap.co-ops.nos.noaa.gov/thredds/catalog/NOAA/SFBOFS/MODELS/catalog.html).
   A model estimate, not a measurement.
-- **Bay currents (BAY map):** the same model's surface currents from the Golden Gate
-  Bridge to Pier 41, from the same server, shown in NOAA's speed bands like its own
+- **Currents (tiles, chart and both maps):** the same model's surface currents from the
+  Golden Gate Bridge to Pier 41, from the same server, shown in NOAA's speed bands like its own
   [SFBOFS current maps](https://tidesandcurrents.noaa.gov/ofs/ofs_mapplots.html?ofsregion=sfb&subdomain=en&model_type=currents_forecast).
 - **Air temperature and wind:** measured at [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290)
   station 9414290 for past times; forecast by the

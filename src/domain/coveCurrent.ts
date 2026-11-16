@@ -1,10 +1,10 @@
-// The current at Aquatic Park cove's mouth, from NOAA's SFBOFS model, in the same shape
-// as NOAA's current predictions (CurrentData), so the tiles, the slider and the current
+// The current around Aquatic Park cove, from NOAA's SFBOFS model, in the same shape as
+// NOAA's current predictions (CurrentData), so the tiles, the slider and the current
 // chart can show it in place of the Alcatraz SW prediction.
 //
-// The mouth's current is the average of the model's points just outside the cove's
-// opening (within MOUTH_REACH_M of COVE_MOUTH, and not inside the cove): the water a
-// swimmer meets at the entrance. Points inside the cove aren't used: the model doesn't
+// It's the average of the model's points in the open water the COVE map shows (inside
+// COVE_VIEW, but not in the cove or the harbor): the same arrows a swimmer sees on the
+// map, summed up. Points in the cove and the harbor aren't used: the model doesn't
 // include the piers, so its values there are only a rough guide (the map draws them as
 // faded eddies). See docs/decisions.md for how this compared with the stations.
 
@@ -26,10 +26,10 @@ export const HARBOR_WATER: LatLon[] = [
   [37.80758, -122.41768], [37.80682, -122.42084], [37.8088, -122.42109], [37.81021, -122.42278],
 ]
 
-/** The middle of the cove's opening, between the Municipal Pier's tip and the breakwater. */
-export const COVE_MOUTH: LatLon = [37.81046, -122.4238]
-/** Model points further than this from COVE_MOUTH (meters) don't count toward the mouth's current. */
-const MOUTH_REACH_M = 120
+/** The area the COVE map shows (its frame's corners; the map is turned 17°). */
+export const COVE_VIEW: LatLon[] = [
+  [37.81102, -122.43052], [37.81356, -122.42], [37.80758, -122.41768], [37.80504, -122.4282],
+]
 
 /**
  * The flood direction, as a compass bearing (degrees clockwise from north): the Golden
@@ -37,7 +37,6 @@ const MOUTH_REACH_M = 120
  */
 const FLOOD_BEARING_DEG = 73
 
-const METERS_PER_DEGREE_LAT = 111_000
 const HOUR_MS = 60 * 60 * 1000
 
 /**
@@ -60,45 +59,31 @@ export function insideArea(lat: number, lon: number, area: LatLon[]): boolean {
   return inside
 }
 
-/**
- * Distance in meters between two nearby points, treating the earth as flat here:
- *   north = Δlat × 111,000 m,  east = Δlon × 111,000 m × cos(latitude)
- *   distance = √(north² + east²)
- */
-function distanceM(a: LatLon, b: LatLon): number {
-  const north = (a[0] - b[0]) * METERS_PER_DEGREE_LAT
-  const east = (a[1] - b[1]) * METERS_PER_DEGREE_LAT * Math.cos((a[0] * Math.PI) / 180)
-  return Math.sqrt(north * north + east * east)
-}
-
 type Weight = { index: number; weight: number }
 
 /**
- * Which of the model's points make up the mouth's current, and how much each counts:
- * points within MOUTH_REACH_M of COVE_MOUTH and not inside the cove, closer ones counting
- * more (inverse-distance weighting):
- *   weight = 1 / (distance² + 25)       (the 25 keeps a point right at the mouth from dominating)
- * then divided by their sum so the weights add up to 1.
+ * Which of the model's points make up the cove's current: those in COVE_VIEW and not in
+ * the cove or the harbor, all counting the same:
+ *   weight = 1 / number of points
  */
-export function mouthWeights(points: CurrentField['points']): Weight[] {
-  const raw: Weight[] = []
+export function viewWeights(points: CurrentField['points']): Weight[] {
+  const chosen: number[] = []
   points.forEach((point, index) => {
+    if (!insideArea(point.lat, point.lon, COVE_VIEW)) return
     if (insideArea(point.lat, point.lon, COVE_WATER)) return
-    const distance = distanceM([point.lat, point.lon], COVE_MOUTH)
-    if (distance > MOUTH_REACH_M) return
-    raw.push({ index, weight: 1 / (distance * distance + 25) })
+    if (insideArea(point.lat, point.lon, HARBOR_WATER)) return
+    chosen.push(index)
   })
-  let total = 0
-  for (const w of raw) total += w.weight
-  return raw.map((w) => ({ index: w.index, weight: w.weight / total }))
+  return chosen.map((index) => ({ index, weight: 1 / chosen.length }))
 }
 
 /**
- * The mouth's current from one moment's values, east and north in knots:
+ * The average current from one moment's values, east and north in knots, averaged as
+ * vectors so direction and speed come together:
  *   value = Σ weight × value   (each part on its own)
- * Null if no model point is near the mouth.
+ * Null if there are no points.
  */
-export function mouthVector(values: CurrentSnapshot, weights: Weight[]): { east: number; north: number } | null {
+export function averageVector(values: CurrentSnapshot, weights: Weight[]): { east: number; north: number } | null {
   if (weights.length === 0) return null
   let east = 0
   let north = 0
@@ -119,42 +104,99 @@ export function alongAxis(east: number, north: number): number {
   return east * Math.sin(bearing) + north * Math.cos(bearing)
 }
 
+/** Smooth samples are filled in this often between the model's hours, like NOAA's predictions. */
+const SAMPLE_STEP_MS = 6 * 60 * 1000
+
 /**
- * The mouth's current for every hour of the field, with its slacks and peaks, as
- * CurrentData. Null if the field has no hours or no model point near the mouth.
+ * The cove's current over the field's hours, every 6 minutes, with its slacks and peaks,
+ * as CurrentData. Null if the field has no hours or no model point in the view.
  *
- * The model gives one value per hour, so between hours we draw straight lines (as
- * conditionsAt does for any samples). Slacks are where that line crosses zero:
- *   slack time = time before + (time after − time before) × v₀ / (v₀ − v₁)
- * Each peak is the top of a parabola through the largest hourly value and its two
- * neighbors, which lands between hours (see peakBetween).
+ * The model gives one value per hour; between hours the samples follow a smooth curve
+ * through them (see smoothBetween), as tidal currents rise and fall smoothly. Slacks are
+ * where the samples cross zero (a straight line between the two 6-minute samples around
+ * it), and each peak is the largest sample of its flood or ebb (see eventsFrom).
  */
 export function coveCurrentData(field: CurrentField): CurrentData | null {
-  const weights = mouthWeights(field.points)
+  const weights = viewWeights(field.points)
   if (weights.length === 0 || field.hours.length < 2) return null
 
-  const samples: CurrentSample[] = []
+  const hourly: CurrentSample[] = []
   for (const hour of field.hours) {
-    const vector = mouthVector(hour, weights)
+    const vector = averageVector(hour, weights)
     if (vector === null) continue
-    samples.push({ time: hour.time, velocityKt: alongAxis(vector.east, vector.north) })
+    hourly.push({ time: hour.time, velocityKt: alongAxis(vector.east, vector.north) })
   }
 
+  const samples = smoothSamples(hourly)
+  return { station: { id: 'SFBOFS', name: 'NOAA SFBOFS, around Aquatic Park cove' }, samples, events: eventsFrom(samples) }
+}
+
+/**
+ * Hourly samples → samples every SAMPLE_STEP_MS along a smooth curve through them. Hours
+ * further apart than 1½ hours (a gap in the model's files) aren't joined: the curve
+ * stops at the gap and starts again after it.
+ */
+function smoothSamples(hourly: CurrentSample[]): CurrentSample[] {
+  const samples: CurrentSample[] = []
+  for (let i = 0; i < hourly.length; i++) {
+    samples.push(hourly[i])
+    if (i + 1 >= hourly.length) break
+    const t1 = hourly[i].time.getTime()
+    const t2 = hourly[i + 1].time.getTime()
+    if (t2 - t1 > HOUR_MS * 1.5) continue
+    // The neighbors on either side; at an end (or next to a gap), the end value itself.
+    let before = hourly[i]
+    if (i > 0 && t1 - hourly[i - 1].time.getTime() <= HOUR_MS * 1.5) before = hourly[i - 1]
+    let after = hourly[i + 1]
+    if (i + 2 < hourly.length && hourly[i + 2].time.getTime() - t2 <= HOUR_MS * 1.5) after = hourly[i + 2]
+    for (let t = t1 + SAMPLE_STEP_MS; t < t2; t += SAMPLE_STEP_MS) {
+      const fraction = (t - t1) / (t2 - t1)
+      const velocityKt = smoothBetween(before.velocityKt, hourly[i].velocityKt, hourly[i + 1].velocityKt, after.velocityKt, fraction)
+      samples.push({ time: new Date(t), velocityKt })
+    }
+  }
+  return samples
+}
+
+/**
+ * A value between v1 and v2 on a smooth curve through four hourly values in a row
+ * (v0, v1, v2, v3), at `f` of the way from v1 to v2 (a Catmull-Rom spline). The curve
+ * passes through v1 and v2, and its slope at each is set by the values on either side:
+ *   value = ½ × (2·v1 + (−v0 + v2)·f + (2·v0 − 5·v1 + 4·v2 − v3)·f² + (−v0 + 3·v1 − 3·v2 + v3)·f³)
+ * Tested on NOAA's 6-minute predictions (keeping only the hours): about 4× closer to them
+ * than straight lines between hours.
+ */
+function smoothBetween(v0: number, v1: number, v2: number, v3: number, f: number): number {
+  const a = 2 * v1
+  const b = (-v0 + v2) * f
+  const c = (2 * v0 - 5 * v1 + 4 * v2 - v3) * f * f
+  const d = (-v0 + 3 * v1 - 3 * v2 + v3) * f * f * f
+  return 0.5 * (a + b + c + d)
+}
+
+/**
+ * Slacks and peaks from the samples. A slack is where the velocity changes sign, between
+ * two samples v₀ and v₁ (a straight line between them):
+ *   slack time = time before + (time after − time before) × v₀ / (v₀ − v₁)
+ * Between two slacks the water runs one way (a flood or an ebb); its peak is the largest
+ * sample there. A run at the very start or end of the data, whose largest sample is its
+ * first or last, gets no peak (the real peak may be outside the data).
+ */
+function eventsFrom(samples: CurrentSample[]): CurrentEvent[] {
   const events: CurrentEvent[] = []
-  // A run is the samples between two slacks: all flood or all ebb.
   let runStart = 0
   for (let i = 0; i < samples.length - 1; i++) {
     const v0 = samples[i].velocityKt
     const v1 = samples[i + 1].velocityKt
-    const crosses = v0 > 0 !== v1 > 0 && v0 !== v1
-    // Hours further apart than one (a gap in the model's files) aren't joined.
+    // Samples further apart than one step (a gap in the model's files) aren't joined.
     const gap = samples[i + 1].time.getTime() - samples[i].time.getTime() > HOUR_MS * 1.5
     if (gap) {
       runStart = i + 1
       continue
     }
+    const crosses = v0 > 0 !== v1 > 0 && v0 !== v1
     if (!crosses) continue
-    const peak = peakBetween(samples, runStart, i)
+    const peak = peakIn(samples, runStart, i)
     if (peak !== null) events.push(peak)
     const t0 = samples[i].time.getTime()
     const t1 = samples[i + 1].time.getTime()
@@ -162,41 +204,21 @@ export function coveCurrentData(field: CurrentField): CurrentData | null {
     events.push({ time: new Date(slackMs), kind: 'slack', speedKt: 0 })
     runStart = i + 1
   }
-  const lastPeak = peakBetween(samples, runStart, samples.length - 1)
+  const lastPeak = peakIn(samples, runStart, samples.length - 1)
   if (lastPeak !== null) events.push(lastPeak)
-
-  return { station: { id: 'SFBOFS', name: 'NOAA SFBOFS, Aquatic Park cove mouth' }, samples, events }
+  return events
 }
 
-/**
- * The max flood or max ebb among samples[from..to] (one run, all the same sign), or null
- * if the run is too short to have a peak inside it (fewer than 3 samples, or the largest
- * value at either end, where the peak may be outside the data).
- *
- * The peak time comes from a parabola through the largest value (v₀ at t₀) and its
- * neighbors (v₋ an hour before, v₊ an hour after); its top is
- *   shift = (v₋ − v₊) / (2 × (v₋ − 2·v₀ + v₊))      (in hours, between −½ and +½)
- *   time  = t₀ + shift hours,   speed = v₀ − (v₋ − v₊) × shift / 4
- */
-function peakBetween(samples: CurrentSample[], from: number, to: number): CurrentEvent | null {
-  if (to - from < 2) return null
+/** The largest sample in samples[from..to] as a max flood or max ebb; null if it's at either end. */
+function peakIn(samples: CurrentSample[], from: number, to: number): CurrentEvent | null {
   let best = from
   for (let i = from; i <= to; i++) {
     if (Math.abs(samples[i].velocityKt) > Math.abs(samples[best].velocityKt)) best = i
   }
   if (best === from || best === to) return null
-  const before = Math.abs(samples[best - 1].velocityKt)
-  const top = Math.abs(samples[best].velocityKt)
-  const after = Math.abs(samples[best + 1].velocityKt)
-  const curvature = before - 2 * top + after
-  let shift = 0
-  if (curvature !== 0) shift = (before - after) / (2 * curvature)
-  shift = Math.max(-0.5, Math.min(0.5, shift))
-  const speedKt = top - ((before - after) * shift) / 4
-  const time = new Date(samples[best].time.getTime() + shift * HOUR_MS)
   let kind: CurrentEvent['kind'] = 'maxEbb'
   if (samples[best].velocityKt > 0) kind = 'maxFlood'
-  return { time, kind, speedKt }
+  return { time: samples[best].time, kind, speedKt: Math.abs(samples[best].velocityKt) }
 }
 
 /** Does the data cover every moment from `start` to `end`? */

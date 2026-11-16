@@ -10,7 +10,7 @@ export const SOURCE_PAGES = {
 }
 
 /**
- * Where the current tiles' numbers come from: NOAA's SFBOFS model at the cove's mouth
+ * Where the current tiles' numbers come from: NOAA's SFBOFS model around the cove
  * when it covers the selected day, otherwise NOAA's Alcatraz SW prediction.
  */
 export type CurrentSource = 'sfbofs' | 'alcatraz'

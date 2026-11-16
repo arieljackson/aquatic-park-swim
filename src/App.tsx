@@ -47,9 +47,9 @@ function App() {
   const { data, error } = usePredictions(selected.time)
   const cove = useCoveCurrent(selected.time)
 
-  // The current shown everywhere (tiles, slider, chart, cove map): NOAA's SFBOFS model at
-  // the cove's mouth when it covers the whole selected day, otherwise NOAA's Alcatraz SW
-  // prediction. The tide is always NOAA's Pier 41 prediction.
+  // The current shown everywhere (tiles, slider, chart, cove map): NOAA's SFBOFS model
+  // around the cove (the open water the COVE map shows, averaged) when it covers the whole
+  // selected day, otherwise NOAA's Alcatraz SW prediction. The tide is always NOAA's Pier 41 prediction.
   const dayStart = startOfPacificDay(selected.time)
   const dayEnd = addPacificDays(dayStart, 1)
   let currentSource: CurrentSource = 'alcatraz'
@@ -106,6 +106,12 @@ function App() {
           <p>
             This website is still a work in progress. Real conditions vary, and you should always use your own
             judgment while swimming.
+          </p>
+          <p>
+            SFBOFS models provide better data around Aquatic Cove than the fixed station locations. Around the
+            stations, SFBOFS values are very similar to station values, and SFBOFS adjust for the shore. Based on both
+            personal experience and historical analysis, the timing of SFBOFS slack is more accurate than Alcatraz SW
+            for the cove.
           </p>
         </div>
       </div>
