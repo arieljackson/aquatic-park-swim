@@ -56,6 +56,25 @@ The app uses NOAA's tide predictions for the Golden Gate, shifted to North Point
 
 "Slack" means under 0.2 knots. This is my starting point for what "feels" like slack. Real conditions can differ and I should tune this.
 
+## How the current was chosen
+
+The tiles use SFBOFS, with Alcatraz SW where the model has no data. Alcatraz SW's prediction comes from a 7-week current meter deployment there in 2012, about 1 km from the cove. No station is closer (North Point, Pier 35 is 1.4 km away, and the nearest live current meters are in Oakland). A month of NOAA's SFBOFS model (Oct 18 – Nov 17, 2026) just outside the cove's opening compared with the stations:
+
+- The flood starts about 35–40 min earlier at the cove than either Alcatraz SW or
+  Pier 35 predicts; the ebb starts at about the same time.
+- Ebbs at the cove are weak: about a third of Alcatraz SW's speed. Floods are about
+  0.85×. Pier 35 overstates the cove's speeds 2–4×.
+- At each station's own spot the model matches NOAA's prediction closely, so it seems
+  trustworthy here.
+- Tested: rebuilding NOAA's 6-minute predictions from just their hourly values with a
+  smooth curve lands about 0.004 kt off, with slack times within a minute, so hourly
+  data looks like a non-issue. The app now does the combo without the adjustment:
+  SFBOFS where it has data (about a month back to 2 days ahead), Alcatraz SW after.
+
+That comparison was done just outside the cove's opening. The app itself averages the
+SFBOFS current over all the open water the COVE map shows (about 21 model points, not
+the cove or the harbor), so the tiles and the map's arrows share one number.
+
 ## Conditions
 
 | Tile | Past and now | Later | Reaches |
@@ -133,37 +152,23 @@ Vercel builds and deploys the site on every push to `main`. A GitHub Action also
 
 ## What's next / open thoughts
 
-- Big thought: SFBOFS seems to be more accurate than Alcatraz SW and closer to the cove.
-But it is less granular.
-
-- Station vs. SFBOFS model for the cove's current (the tiles now use SFBOFS, with Alcatraz
-  SW where the model has no data): Alcatraz SW's prediction comes from a 7-week current meter deployment there in 2012, about
-  1 km from the cove. No station is closer (North Point, Pier 35 is 1.4 km away, and the
-  nearest live current meters are in Oakland). A month of NOAA's SFBOFS model (Oct
-  18 – Nov 17, 2026) just outside the cove's opening compared with the stations:
-  - The flood starts about 35–40 min earlier at the cove than either Alcatraz SW or
-    Pier 35 predicts; the ebb starts at about the same time.
-  - Ebbs at the cove are weak: about a third of Alcatraz SW's speed. Floods are about
-    0.85×. Pier 35 overstates the cove's speeds 2–4×.
-  - At each station's own spot the model matches NOAA's prediction closely, so it seems
-    trustworthy here.
-  - Tested: rebuilding NOAA's 6-minute predictions from just their hourly values with a
-    smooth curve lands about 0.004 kt off, with slack times within a minute, so hourly
-    data looks like a non-issue. The app now does the combo without the adjustment:
-    SFBOFS where it has data (about a month back to 2 days ahead), Alcatraz SW after.
-
-- I am also thinking about this website: [SF Currents](https://l-36.com/sf_current_overview.php).
+- Currents are looking much better, but do we want even more detail? I am thinking about this website: [SF Currents](https://l-36.com/sf_current_overview.php).
 - Another big thought: wind is really important too. Wind is included in SFBOFS current calculations I think, but maybe a wind layer on the map would be nice. But again, something like [windfinder](https://www.windfinder.com/#12/37.8267/-122.3853/2026-11-10T21:00Z/report) does an amazing job at this. 
-
-**Other ideas.**
 
 - I widened the map, but only between Golden Gate / North Point. Do we want it wider / navigable / more landmarks?
 - Include a way to send suggestions or outreach.
 - Finetuning / code clean up?
+  - The two server functions (`api/water-temp.ts`, `api/currents.ts`) each have their
+    own copy of the same helpers (allowed days, Pacific midnight, finding the latest
+    SFBOFS run, reading from NOAA's server). They could share one helper file
+    (`api/_sfbofs.ts`; Vercel doesn't treat files starting with "_" as functions).
+  - Every page load fetches three days of SFBOFS currents (about 210 KB gzipped), but the
+    COVE view only needs about 50 of the ~2,240 points. A smaller cove-only response
+    would make the first load faster; BAY would still load the full set when opened.
 - The font size and styling could be improved. Font size too small?
 - Can I get access to any hyper local weather data at the clubs themselves? 
 - Animal and incident reports
-- iOS + android1.
+- iOS + android.
 
 ## Credits
 

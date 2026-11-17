@@ -1,5 +1,5 @@
-// The SFBOFS model's arrows, shared by both maps: NOAA's seven speed bands with their
-// colors, and the arrow shape (a line with an open V head).
+// The current's arrows, shared by both maps: NOAA's seven speed bands with their colors,
+// and the arrow shape (a line with an open V head).
 //
 // Each band's color is brighter than the one before (violet → magenta → rose → orange →
 // amber → yellow → pale yellow, a plasma-like palette), so the fastest water stands out

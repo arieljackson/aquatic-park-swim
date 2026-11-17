@@ -1,25 +1,19 @@
 """
-Places the current arrows on the map.
+Places the COVE map's fixed arrow spots.
 
   python3 scripts/cove-map/arrows.py
 
 Reads the map shapes from src/ui/map/coveShapes.ts and writes
-src/ui/map/arrowLayout.ts. Every arrow is checked along its whole length, at the
-biggest speed we expect, so it never touches land, piers, docks, the breakwater or
-the boxes that float over the map. Only needs re-running if the shapes, the arrow
-sizes or the regions below change.
+src/ui/map/arrowLayout.ts. Every spot is checked along a straight left/right arrow of
+CHECK_LENGTH, so an arrow there never touches land, piers, docks, the breakwater or the
+boxes that float over the map. Only needs re-running if the shapes or the regions below
+change.
 
-Two kinds of arrows:
-- Open water (outside the cove, not in the harbor): straight, on a staggered grid.
-  They point east on a flood, west on an ebb; length follows speed.
-- Cove: a few long curving "eddy" arrows (like the back-eddy arrows in the Dolphin
-  Club guide), drawn by hand below: one between the opening and the middle of the
-  cove and one along the inside of the Municipal Pier (both toward shore and east on
-  a flood), and two sweeping across it in the direction of the current. These show
-  direction only. Plus straight solid arrows, the same as the open-water ones (length
-  follows speed): the actual data. Each is a
-  quadratic curve given in its flood direction; on an ebb it's drawn backwards.
-  An estimate, not a NOAA station.
+Two sets of spots (see CurrentMap.tsx):
+- Open water (outside the cove, not in the harbor): a staggered grid. Used when the
+  current comes from NOAA's Alcatraz SW prediction (no SFBOFS for the day).
+- Cove: four spots placed by hand. Used for the cove's flood/ebb arrows, from SFBOFS or
+  Alcatraz SW.
 
 The map is rotated 17° so east/west (flood/ebb) is left/right; "away from shore" is up.
 """
@@ -32,9 +26,9 @@ ROOT = Path(__file__).parent.parent.parent
 SHAPES = ROOT / "src/ui/map/coveShapes.ts"
 OUT = ROOT / "src/ui/map/arrowLayout.ts"
 
-# Keep these in step with CurrentMap.tsx.
-UNITS_PER_KNOT = 60  # open-water arrow length per knot of current (map units)
-MAX_KT = 1.6  # about the biggest Aquatic Park speed in NOAA's predictions: check clearance at this
+# Each spot is checked with an arrow this long (map units), longer than the 70 the map
+# draws (CurrentMap.tsx), so there's room to spare.
+CHECK_LENGTH = 96
 
 src = SHAPES.read_text()
 
@@ -130,62 +124,11 @@ for y in range(40, 700, 58):
     for x in range(330 + offset, 1300, 140):
         if inside((x, y), [COVE]) or inside((x, y), [HARBOR]):
             continue
-        if arrow_clear(x, y, 1, 0, UNITS_PER_KNOT * MAX_KT, 9):
+        if arrow_clear(x, y, 1, 0, CHECK_LENGTH, 9):
             open_water.append((x, y))
     row += 1
 
-# ---- Cove: long curving arrows, in their flood direction (start → end, bending
-# toward the control point). Placed by hand in map units, then trimmed and checked.
-# "keep" is the part of the drawn curve to show, from t0 to t1 (0 = start, 1 = end).
-COVE_CURVES_FULL = [
-    # From the opening: in through the gap, toward shore and east, on a flood; back out
-    # through the gap on an ebb. Not trimmed at the gap end, so the ebb tip stays there.
-    {"start": (828, 262), "control": (840, 360), "end": (880, 450), "keep": (0.0, 0.9)},
-    # Along the inside of the Municipal Pier: east and toward shore on a flood.
-    {"start": (600, 320), "control": (700, 295), "end": (790, 360), "keep": (0.1, 0.9)},
-    # Sweeping east across the cove, following the shape of the beach, tilted
-    # slightly away from shore.
-    {"start": (550, 455), "control": (680, 440), "end": (860, 405), "keep": (0.1, 0.9)},
-    {"start": (650, 548), "control": (800, 585), "end": (975, 505), "keep": (0.1, 0.9)},
-]
-
-
-def curve_point(curve, t):
-    """Quadratic curve:  point = (1−t)² · start + 2(1−t)t · control + t² · end"""
-    (x0, y0), (x1, y1), (x2, y2) = curve["start"], curve["control"], curve["end"]
-    a, b, c = (1 - t) ** 2, 2 * (1 - t) * t, t * t
-    return (a * x0 + b * x1 + c * x2, a * y0 + b * y1 + c * y2)
-
-
-def trim(curve, t0, t1):
-    """
-    The piece of a quadratic curve between t0 and t1, as its own quadratic curve.
-    Its ends are the curve's points at t0 and t1, and its control point is
-      control' = (1−t0)(1−t1) · start + ((1−t0)·t1 + t0·(1−t1)) · control + t0·t1 · end
-    """
-    (x0, y0), (x1, y1), (x2, y2) = curve["start"], curve["control"], curve["end"]
-    a = (1 - t0) * (1 - t1)
-    b = (1 - t0) * t1 + t0 * (1 - t1)
-    c = t0 * t1
-    control = (a * x0 + b * x1 + c * x2, a * y0 + b * y1 + c * y2)
-    return {"start": curve_point(curve, t0), "control": control, "end": curve_point(curve, t1)}
-
-
-COVE_CURVES = [trim(c, c["keep"][0], c["keep"][1]) for c in COVE_CURVES_FULL]
-curve_samples = []
-for curve in COVE_CURVES:
-    for i in range(41):
-        point = curve_point(curve, i / 40)
-        if not clear(point, margin=8):
-            raise SystemExit(f"Cove curve {curve} touches land or a pier near {point}")
-        curve_samples.append(point)
-
-# ---- Cove: straight arrows for the regular east/west current, placed by hand in the
-# open spots between the curves.
-# Same length as the open-water arrows (keep in step with CurrentMap.tsx), checked at
-# the biggest speed:  length = 60 × 1.6 = 96 units
-straight_length = UNITS_PER_KNOT * MAX_KT
-CURVE_GAP = 15  # closest a straight arrow (at full length) may come to a curve
+# ---- Cove: four spots placed by hand.
 cove_straight = [
     (704, 240),  # just inside the Municipal Pier
     (644, 372),  # west side
@@ -193,24 +136,13 @@ cove_straight = [
     (936, 444),  # east side, just inside Hyde Street Pier
 ]
 for (cx, cy) in cove_straight:
-    if not arrow_clear(cx, cy, 1, 0, straight_length, 9):
+    if not arrow_clear(cx, cy, 1, 0, CHECK_LENGTH, 9):
         raise SystemExit(f"Cove arrow {(cx, cy)} touches land, a pier or an overlay")
-    closest = None
-    for i in range(13):
-        # Points along the arrow:  x = center + length × (i/12 − 0.5)
-        ax = cx + straight_length * (i / 12 - 0.5)
-        for (px, py) in curve_samples:
-            d = math.hypot(ax - px, cy - py)
-            if closest is None or d < closest:
-                closest = d
-    if closest < CURVE_GAP:
-        raise SystemExit(f"Cove arrow {(cx, cy)} is only {closest:.0f} units from a curve")
-    print(f"cove arrow {(cx, cy)}: {closest:.0f} units from the nearest curve")
 
 lines = [
     "// Generated by scripts/cove-map/arrows.py — do not edit by hand.",
-    "// Where the current arrows go. Each was checked to stay clear of land, piers,",
-    f"// docks, the breakwater and the map's overlays (straight arrows at {MAX_KT} kt).",
+    "// The COVE map's fixed arrow spots. Each was checked to stay clear of land, piers,",
+    f"// docks, the breakwater and the map's overlays (a straight arrow {CHECK_LENGTH} units long).",
     "",
     "/** Open water: straight arrow centers. */",
     "export const OPEN_WATER_ARROWS: Array<{ x: number; y: number }> = [",
@@ -219,23 +151,10 @@ lines += [f"  {{ x: {x}, y: {y} }}," for (x, y) in open_water]
 lines += [
     "]",
     "",
-    "/** Cove: short straight arrow centers, showing the regular east/west current. */",
+    "/** Cove: spots for the cove's flood/ebb arrows. */",
     "export const COVE_STRAIGHT_ARROWS: Array<{ x: number; y: number }> = [",
 ]
 lines += [f"  {{ x: {x}, y: {y} }}," for (x, y) in cove_straight]
-lines += [
-    "]",
-    "",
-    "type Point = { x: number; y: number }",
-    "",
-    "/** Cove: long curving arrows in their flood direction (start → end). Ebb draws them backwards. */",
-    "export const COVE_CURVES: Array<{ start: Point; control: Point; end: Point }> = [",
-]
-for c in COVE_CURVES:
-    (sx, sy), (cx, cy), (ex, ey) = c["start"], c["control"], c["end"]
-    lines.append(
-        f"  {{ start: {{ x: {sx:.0f}, y: {sy:.0f} }}, control: {{ x: {cx:.0f}, y: {cy:.0f} }}, end: {{ x: {ex:.0f}, y: {ey:.0f} }} }},"
-    )
 lines += ["]", ""]
 OUT.write_text("\n".join(lines))
-print(f"{len(open_water)} open-water arrows, {len(cove_straight)} straight cove arrows, {len(COVE_CURVES)} cove curves")
+print(f"{len(open_water)} open-water spots, {len(cove_straight)} cove spots")

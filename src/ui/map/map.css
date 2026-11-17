@@ -35,34 +35,6 @@
   stroke-linejoin: round;
 }
 
-/* Current arrows: solid white straight arrows (the data); dotted, lighter curves in
-   the cove, an estimate of the eddy (direction only). */
-.map__arrow path {
-  fill: none;
-  stroke: #ffffff;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.map__arrow .map__arrow-head {
-  fill: #ffffff;
-  stroke: none;
-}
-.map__arrow--cove path { stroke: #9fb3c0; }
-/* Slack ◆ markers: filled in the same color as the arrows they stand in for. */
-.map__arrow .map__diamond {
-  fill: #ffffff;
-  stroke: none;
-}
-.map__dots {
-  stroke-width: 3;
-  /* Near-zero dashes with round caps draw as dots, 7 units apart. */
-  stroke-dasharray: 0.1 7;
-}
-.map__dots--key {
-  stroke-width: 2;
-  stroke-dasharray: 0.1 4;
-}
-
 .map__label {
   fill: #c4ccd2;
   font-family: var(--sans);
@@ -90,12 +62,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.map__key-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .map__north {
@@ -226,15 +192,3 @@
 .map__dotted { stroke-dasharray: 0.1 9; }
 
 
-/* A note at the bottom of the COVE map's key, set off by a thin line; as wide as the
-   color strip (7 bands × 20px), so it wraps rather than widening the key. */
-.map__key-note {
-  max-width: 140px;
-  margin: 2px 0 0;
-  padding-top: 4px;
-  border-top: 1px solid var(--line-strong);
-  font-family: var(--sans);
-  font-size: 10px;
-  line-height: 1.3;
-  color: var(--label);
-}

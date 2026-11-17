@@ -1,6 +1,6 @@
 // The BAY map: the bay from the Golden Gate Bridge to Pier 41, past Alcatraz, with
-// NOAA's SFBOFS model surface current at the selected time, blended between its
-// hourly values. One fixed view, no zooming; the COVE view is CurrentMap.tsx.
+// NOAA's SFBOFS model surface current at the selected time: between its hourly values,
+// speed blended and direction from the nearest hour (see currentFieldAt). One fixed view, no zooming; the COVE view is CurrentMap.tsx.
 //
 // The map is rotated 17° like the cove map, so the Golden Gate's flood/ebb axis is
 // horizontal. Arrows (wideArrows.ts for where) are all the same size; their color is the
@@ -32,7 +32,7 @@ type Station = { name: string; at: { x: number; y: number }; labelLeft: boolean 
 
 /** NOAA's positions for the stations the tiles use. */
 const STATIONS: Station[] = [
-  { name: 'SW Alcatraz', at: project(37.81425, -122.432), labelLeft: false },
+  { name: 'Alcatraz SW', at: project(37.81425, -122.432), labelLeft: false },
   { name: 'Pier 41', at: project(37.81, -122.413), labelLeft: true },
   { name: 'Golden Gate', at: project(37.806305, -122.46589), labelLeft: false },
 ]

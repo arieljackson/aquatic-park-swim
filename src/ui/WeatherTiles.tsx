@@ -142,7 +142,7 @@ export function WeatherTiles({ time }: { time: Date }) {
         <h2 className="label">Water temp</h2>
         <p className={`temp__value mono${pulse(waterLoading)}`}>{waterText}</p>
         <p className="temp__detail">{waterDetail}</p>
-        <SourceLink href={SOURCE_PAGES.bayModel}>NOAA SFBOFS</SourceLink>
+        <SourceLink href={SOURCE_PAGES.sfbofs}>NOAA SFBOFS</SourceLink>
       </section>
       <section className="temp">
         <h2 className="label">Wind</h2>

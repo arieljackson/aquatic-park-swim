@@ -21,22 +21,18 @@ type Props = {
   currentSource: CurrentSource
   /** The tiles' current, for the COVE view. Phase is null while loading. */
   phase: CurrentPhase | null
-  speedKt: number
+  velocityKt: number // signed: + flood, − ebb
 }
 
-export function MapPanel({ time, field, currentSource, phase, speedKt }: Props) {
+export function MapPanel({ time, field, currentSource, phase, velocityKt }: Props) {
   const [view, setView] = useState<View>('cove')
-
-  function show(next: View) {
-    setView(next)
-  }
 
   const controls = (
     <div className="map__views mono" role="group" aria-label="Map view">
-      <button type="button" aria-pressed={view === 'cove'} onClick={() => show('cove')}>
+      <button type="button" aria-pressed={view === 'cove'} onClick={() => setView('cove')}>
         COVE
       </button>
-      <button type="button" aria-pressed={view === 'bay'} onClick={() => show('bay')}>
+      <button type="button" aria-pressed={view === 'bay'} onClick={() => setView('bay')}>
         BAY
       </button>
     </div>
@@ -44,6 +40,6 @@ export function MapPanel({ time, field, currentSource, phase, speedKt }: Props) 
 
   if (view === 'bay') return <WideMap field={field} time={time} controls={controls} />
   return (
-    <CurrentMap phase={phase} speedKt={speedKt} field={field} time={time} currentSource={currentSource} controls={controls} />
+    <CurrentMap phase={phase} velocityKt={velocityKt} field={field} time={time} currentSource={currentSource} controls={controls} />
   )
 }

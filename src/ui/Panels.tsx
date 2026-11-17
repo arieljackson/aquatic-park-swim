@@ -23,77 +23,142 @@ const PHASE_WORDS: Record<CurrentPhase, string> = {
 //
 // Every tile always has the same lines, and no line wraps, so tiles keep their shape
 // whatever the time or the numbers. Lines are sized for their longest text
-// (e.g. "12:47 AM tomorrow").
-type PanelsProps = { conditions: Conditions | null; currentSource: CurrentSource }
+// (e.g. "12:47 AM tomorrow"). While a tile's source loads, its value shows as "--" and
+// gently pulses, so the page has its final shape from the start and each tile fills in.
+type PanelsProps = {
+  conditions: Conditions | null // null while the predictions load
+  currentSource: CurrentSource
+  /** The current's source is still loading: the current tiles wait (the tide doesn't). */
+  currentLoading: boolean
+}
 
-export function Panels({ conditions, currentSource }: PanelsProps) {
-  if (conditions === null) return <LoadingPanels currentSource={currentSource} />
-  const { at, current, tide } = conditions
-  const nextTide = tide.next
-
+export function Panels({ conditions, currentSource, currentLoading }: PanelsProps) {
+  let current: Conditions | null = conditions
+  if (currentLoading) current = null
   return (
     <div className="panels">
-      <section className="panel">
-        <h2 className="label">Current</h2>
-        {/* The glyph gets its own line, the same height as the big number in the other
-            tiles, so the words below have the tile's full width. */}
-        <div className="panel__glyph">
-          <StateGlyph phase={current.phase} size={30} />
-        </div>
-        {/* Two lines, the second one empty, so this tile stays the same height as the
-            others. */}
-        <p className="panel__state-words panel__line">{PHASE_WORDS[current.phase]}</p>
-        <p className="panel__state-words panel__line">{'\u00a0'}</p>
-        <CurrentSourceLink source={currentSource} />
-      </section>
-
-      <section className="panel">
-        <h2 className="label">Speed</h2>
-        <p className="panel__big panel__line mono">
-          {current.speedKt.toFixed(1)}
-          <span className="panel__unit"> kt</span>
-        </p>
-        <p className="panel__detail panel__line">
-          {current.cycleMax === null ? '\u00a0' : `Max ${current.cycleMax.speedKt.toFixed(1)} kt`}
-        </p>
-        <p className="panel__detail panel__line">
-          {/* Just the time, no day: this is the narrowest tile on a laptop, and the
-              longest "12:47 AM tomorrow" wouldn't fit. */}
-          {current.cycleMax === null ? '\u00a0' : formatTime(current.cycleMax.time)}
-        </p>
-        <CurrentSourceLink source={currentSource} />
-      </section>
-
+      <CurrentTile conditions={current} source={currentSource} />
+      <SpeedTile conditions={current} source={currentSource} />
       <section className="panel panel--wide">
         <h2 className="label">Next slack</h2>
-        <NextSlack at={at} conditions={conditions} />
+        {current === null && <LoadingLines big="--:--" />}
+        {current !== null && <NextSlack at={current.at} conditions={current} />}
         <CurrentSourceLink source={currentSource} />
       </section>
+      <TideTile conditions={conditions} />
+    </div>
+  )
+}
 
+/** The three lines of a tile while its source loads: the value as "--", gently pulsing. */
+function LoadingLines({ big }: { big: string }) {
+  const empty = '\u00a0'
+  return (
+    <>
+      <p className="panel__big panel__line mono is-loading">{big}</p>
+      <p className="panel__detail panel__line">{empty}</p>
+      <p className="panel__detail panel__line">{empty}</p>
+    </>
+  )
+}
+
+function CurrentTile({ conditions, source }: { conditions: Conditions | null; source: CurrentSource }) {
+  if (conditions === null) {
+    return (
+      <section className="panel">
+        <h2 className="label">Current</h2>
+        <div className="panel__glyph" />
+        <p className="panel__state-words panel__line is-loading">--</p>
+        <p className="panel__state-words panel__line">{'\u00a0'}</p>
+        <CurrentSourceLink source={source} />
+      </section>
+    )
+  }
+  const { current } = conditions
+  return (
+    <section className="panel">
+      <h2 className="label">Current</h2>
+      {/* The glyph gets its own line, the same height as the big number in the other
+          tiles, so the words below have the tile's full width. */}
+      <div className="panel__glyph">
+        <StateGlyph phase={current.phase} size={30} />
+      </div>
+      {/* Two lines, the second one empty, so this tile stays the same height as the
+          others. */}
+      <p className="panel__state-words panel__line">{PHASE_WORDS[current.phase]}</p>
+      <p className="panel__state-words panel__line">{'\u00a0'}</p>
+      <CurrentSourceLink source={source} />
+    </section>
+  )
+}
+
+function SpeedTile({ conditions, source }: { conditions: Conditions | null; source: CurrentSource }) {
+  if (conditions === null) {
+    return (
+      <section className="panel">
+        <h2 className="label">Speed</h2>
+        <LoadingLines big="--" />
+        <CurrentSourceLink source={source} />
+      </section>
+    )
+  }
+  const { current } = conditions
+  return (
+    <section className="panel">
+      <h2 className="label">Speed</h2>
+      <p className="panel__big panel__line mono">
+        {current.speedKt.toFixed(1)}
+        <span className="panel__unit"> kt</span>
+      </p>
+      <p className="panel__detail panel__line">
+        {current.cycleMax === null ? '\u00a0' : `Max ${current.cycleMax.speedKt.toFixed(1)} kt`}
+      </p>
+      <p className="panel__detail panel__line">
+        {/* Just the time, no day: this is the narrowest tile on a laptop, and the
+            longest "12:47 AM tomorrow" wouldn't fit. */}
+        {current.cycleMax === null ? '\u00a0' : formatTime(current.cycleMax.time)}
+      </p>
+      <CurrentSourceLink source={source} />
+    </section>
+  )
+}
+
+function TideTile({ conditions }: { conditions: Conditions | null }) {
+  if (conditions === null) {
+    return (
       <section className="panel panel--wide">
         <h2 className="label">Tide</h2>
-        <p className="panel__big panel__line mono">
-          {tide.heightFt.toFixed(1)}
-          <span className="panel__unit"> ft {tide.trend === 'rising' ? '▲' : '▼'}</span>
-        </p>
-        {/* Same look as Next slack's second line: the event in bold; here its height too. */}
-        <p className="panel__detail panel__line">
-          {nextTide === null ? (
-            '\u00a0'
-          ) : (
-            <>
-              <span className="panel__event">{nextTide.kind === 'high' ? 'High' : 'Low'}</span>
-              {' · '}
-              <span className="panel__event">{nextTide.heightFt.toFixed(1)} ft</span>
-            </>
-          )}
-        </p>
-        <p className="panel__detail panel__line">
-          {nextTide === null ? '\u00a0' : `${formatTime(nextTide.time)} ${formatRelativeDay(nextTide.time, at)}`}
-        </p>
+        <LoadingLines big="--" />
         <SourceLink href={SOURCE_PAGES.pier41Tide}>NOAA Pier 41</SourceLink>
       </section>
-    </div>
+    )
+  }
+  const { at, tide } = conditions
+  const nextTide = tide.next
+  return (
+    <section className="panel panel--wide">
+      <h2 className="label">Tide</h2>
+      <p className="panel__big panel__line mono">
+        {tide.heightFt.toFixed(1)}
+        <span className="panel__unit"> ft {tide.trend === 'rising' ? '▲' : '▼'}</span>
+      </p>
+      {/* Same look as Next slack's second line: the event in bold; here its height too. */}
+      <p className="panel__detail panel__line">
+        {nextTide === null ? (
+          '\u00a0'
+        ) : (
+          <>
+            <span className="panel__event">{nextTide.kind === 'high' ? 'High' : 'Low'}</span>
+            {' · '}
+            <span className="panel__event">{nextTide.heightFt.toFixed(1)} ft</span>
+          </>
+        )}
+      </p>
+      <p className="panel__detail panel__line">
+        {nextTide === null ? '\u00a0' : `${formatTime(nextTide.time)} ${formatRelativeDay(nextTide.time, at)}`}
+      </p>
+      <SourceLink href={SOURCE_PAGES.pier41Tide}>NOAA Pier 41</SourceLink>
+    </section>
   )
 }
 
@@ -130,47 +195,6 @@ function NextSlack({ at, conditions }: { at: Date; conditions: Conditions }) {
           : `Next ${nextSlackOfOtherKind.kind}: ${formatTime(nextSlackOfOtherKind.time)} ${formatRelativeDay(nextSlackOfOtherKind.time, at)}`}
       </p>
     </>
-  )
-}
-
-/**
- * The same four tiles with the same lines, while the predictions load: values show as
- * "--" and gently pulse, so the page has its final shape from the start and each tile
- * just fills in.
- */
-function LoadingPanels({ currentSource }: { currentSource: CurrentSource }) {
-  const empty = '\u00a0'
-  return (
-    <div className="panels">
-      <section className="panel">
-        <h2 className="label">Current</h2>
-        <div className="panel__glyph" />
-        <p className="panel__state-words panel__line is-loading">--</p>
-        <p className="panel__state-words panel__line">{empty}</p>
-        <CurrentSourceLink source={currentSource} />
-      </section>
-      <section className="panel">
-        <h2 className="label">Speed</h2>
-        <p className="panel__big panel__line mono is-loading">--</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <CurrentSourceLink source={currentSource} />
-      </section>
-      <section className="panel panel--wide">
-        <h2 className="label">Next slack</h2>
-        <p className="panel__big panel__line mono is-loading">--:--</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <CurrentSourceLink source={currentSource} />
-      </section>
-      <section className="panel panel--wide">
-        <h2 className="label">Tide</h2>
-        <p className="panel__big panel__line mono is-loading">--</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <p className="panel__detail panel__line">{empty}</p>
-        <SourceLink href={SOURCE_PAGES.pier41Tide}>NOAA Pier 41</SourceLink>
-      </section>
-    </div>
   )
 }
 

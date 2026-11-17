@@ -16,6 +16,8 @@ export type CoveCurrent = {
   field: CurrentField | null
   /** The cove's current over those days; null while loading or without model data. */
   data: CurrentData | null
+  /** The selected day hasn't answered yet (no data and no error). */
+  loading: boolean
 }
 
 export function useCoveCurrent(time: Date): CoveCurrent {
@@ -33,5 +35,6 @@ export function useCoveCurrent(time: Date): CoveCurrent {
     return coveCurrentData(field)
   }, [field])
 
-  return { field, data }
+  const loading = day.field === null && day.error === null
+  return { field, data, loading }
 }

@@ -52,8 +52,11 @@ function App() {
   // selected day, otherwise NOAA's Alcatraz SW prediction. The tide is always NOAA's Pier 41 prediction.
   const dayStart = startOfPacificDay(selected.time)
   const dayEnd = addPacificDays(dayStart, 1)
+  // While SFBOFS hasn't answered, the current waits (tiles "--", no arrows, empty chart)
+  // instead of showing Alcatraz SW for a moment; the tide shows as soon as it loads.
+  const currentLoading = cove.loading
   let currentSource: CurrentSource = 'alcatraz'
-  if (cove.data !== null && coversRange(cove.data, dayStart, dayEnd)) currentSource = 'sfbofs'
+  if (currentLoading || (cove.data !== null && coversRange(cove.data, dayStart, dayEnd))) currentSource = 'sfbofs'
   let shown: PredictionData | null = null
   if (data !== null) {
     shown = data.shown
@@ -75,17 +78,17 @@ function App() {
             time={selected.time}
             field={cove.field}
             currentSource={currentSource}
-            phase={conditions === null ? null : conditions.current.phase}
-            speedKt={conditions === null ? 0 : conditions.current.speedKt}
+            phase={conditions === null || currentLoading ? null : conditions.current.phase}
+            velocityKt={conditions === null ? 0 : conditions.current.velocityKt}
           />
         </div>
         {!isWide && (
           <div className="layout__slider">
-            <TimeTile currentEvents={shown === null ? [] : shown.current.events} selected={selected} />
+            <TimeTile currentEvents={shown === null || currentLoading ? [] : shown.current.events} selected={selected} />
           </div>
         )}
         <div className="layout__panels">
-          <Panels conditions={conditions} currentSource={currentSource} />
+          <Panels conditions={conditions} currentSource={currentSource} currentLoading={currentLoading} />
         </div>
         {/* Right after the top tiles on a phone, so all the numbers come before the charts.
             (On a laptop it sits under the map: the grid places it by name.) */}
@@ -100,6 +103,7 @@ function App() {
             onSelect={selected.setTime}
             includeSlider={isWide}
             selected={selected}
+            currentLoading={currentLoading}
           />
         </div>
         <div className="layout__caption caption">
@@ -108,9 +112,14 @@ function App() {
             judgment while swimming.
           </p>
           <p>
-            SFBOFS models provide better data around Aquatic Cove than the fixed station locations. Around the
-            stations, SFBOFS values are very similar to station values. Based on both personal experience and
-            historical analysis, the timing of SFBOFS slack is more accurate than Alcatraz SW for the cove.
+            SFBOFS model data is used instead of fixed NOAA stations. SFBOFS current values match closely to station
+            current values, but SFBOFS covers a larger geographic area. Based on both personal experience and historical
+            analysis, the timing of SFBOFS currents near the cove is more accurate than Alcatraz SW station, which is 1
+            km away.
+          </p>
+          <p>
+            SFBOFS does not provide exact current data for Aquatic Cove. Current is estimated from values around the
+            opening.
           </p>
         </div>
       </div>
@@ -127,13 +136,15 @@ type DaySectionProps = {
   /** Laptop: the slider sits here, above the charts. Phone: App puts it under the map instead. */
   includeSlider: boolean
   selected: SelectedTime
+  /** The current's source is still loading: the current chart and the slider's slack marks wait. */
+  currentLoading: boolean
 }
 
 /**
  * The day's tiles: the time slider (laptop only), then the tide, current and wind charts. They
  * share one width and one day axis, so their times line up.
  */
-function DaySection({ data, conditions, time, onSelect, includeSlider, selected }: DaySectionProps) {
+function DaySection({ data, conditions, time, onSelect, includeSlider, selected, currentLoading }: DaySectionProps) {
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const axis = dayAxis(time, width)
   // Loaded and cached once (see useWeather), so the weather tiles share this data.
@@ -143,7 +154,9 @@ function DaySection({ data, conditions, time, onSelect, includeSlider, selected 
     <section className="day">
       {/* On a laptop the slider's label, right below, already shows the day. */}
       {!includeSlider && <h2 className="label">{formatDay(time)} · Pacific Time</h2>}
-      {includeSlider && <TimeTile currentEvents={data === null ? [] : data.current.events} selected={selected} />}
+      {includeSlider && (
+        <TimeTile currentEvents={data === null || currentLoading ? [] : data.current.events} selected={selected} />
+      )}
       <div className="tile">
         <h3 className="label">Tide</h3>
         {/* Measured here; the charts below have the same width. */}
@@ -156,8 +169,8 @@ function DaySection({ data, conditions, time, onSelect, includeSlider, selected 
       </div>
       <div className="tile">
         <h3 className="label">Current</h3>
-        {data === null && <ChartPlaceholder height={CURRENT_CHART_HEIGHT} />}
-        {data !== null && width > 0 && (
+        {(data === null || currentLoading) && <ChartPlaceholder height={CURRENT_CHART_HEIGHT} />}
+        {data !== null && !currentLoading && width > 0 && (
           <CurrentChart data={data} conditions={conditions} axis={axis} width={width} onSelect={onSelect} />
         )}
       </div>

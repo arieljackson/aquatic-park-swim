@@ -9,6 +9,7 @@
 // faded eddies). See docs/decisions.md for how this compared with the stations.
 
 import type { CurrentField, CurrentSnapshot } from './currentField'
+import { FLOOD_BEARING_DEG } from './currentField'
 import type { CurrentData, CurrentEvent, CurrentSample } from './types'
 
 type LatLon = [number, number] // [latitude, longitude]
@@ -31,11 +32,6 @@ export const COVE_VIEW: LatLon[] = [
   [37.81102, -122.43052], [37.81356, -122.42], [37.80758, -122.41768], [37.80504, -122.4282],
 ]
 
-/**
- * The flood direction, as a compass bearing (degrees clockwise from north): the Golden
- * Gate's flood/ebb axis, the same one the maps are turned to show left/right.
- */
-const FLOOD_BEARING_DEG = 73
 
 const HOUR_MS = 60 * 60 * 1000
 
